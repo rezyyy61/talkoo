@@ -1,0 +1,76 @@
+
+services:
+    # PHP Service container
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                USER_UID: ${UID}
+                USER_GID: ${GID}
+        image: ${APP_IMAGE:-app_image}
+        container_name: app
+        restart: unless-stopped
+        depends_on:
+            - mysql
+            - redis
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+            - ./docker-config/php/php.ini:/usr/local/etc/php/php.ini
+        networks:
+            - talkoo_network
+
+    # Nginx service
+    webserver:
+        platform: linux/amd64
+        image: nginx:alpine
+        container_name: webserver
+        restart: unless-stopped
+        depends_on:
+            - app
+        ports:
+            - "8080:80"
+        volumes:
+            - ./:/var/www
+            - ./docker-config/nginx/:/etc/nginx/conf.d
+        networks:
+            - talkoo_network
+
+    # MySQL service
+    mysql:
+        platform: linux/amd64
+        image: mysql:5.7.22
+        container_name: mysql
+        restart: unless-stopped
+        environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            MYSQL_DATABASE: ${MYSQL_DATABASE:-talkoo_db}
+            MYSQL_USER: ${MYSQL_USER:-talkoo_user}
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+        volumes:
+            - mysql_data:/var/lib/mysql
+            - ./docker-config/mysql/mysql.cnf:/etc/mysql/my.cnf:ro
+        networks:
+            - talkoo_network
+        ports:
+            - "3306:3306"
+
+
+    # Redis service
+    redis:
+        image: redis:7.2-alpine
+        container_name: redis
+        ports:
+            - "6379:6379"
+        networks:
+            - talkoo_network
+
+
+volumes:
+    mysql_data:
+        driver: local
+
+networks:
+    talkoo_network:
+        driver: bridge
