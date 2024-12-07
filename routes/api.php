@@ -14,10 +14,6 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 });
 
 
-Route::get('/message', function () {
-    return response()->json(['message' => ' hellO API laravel']);
-});
-
 Route::post('/register', [RegisteredUserController::class, 'store'])
     ->middleware('guest')
     ->name('register');
