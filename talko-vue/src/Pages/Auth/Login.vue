@@ -137,6 +137,7 @@ const submit = async () => {
 
     const { auth_token, user } = response.data;
     authStore.setToken(auth_token);
+    authStore.setUser(user);
 
     status.value = 'Logged in successfully!';
     router.push('/dashboard');
