@@ -5,6 +5,8 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+// Import Tailwind CSS
+import './assets/tailwind.css';
 
 const app = createApp(App)
 
