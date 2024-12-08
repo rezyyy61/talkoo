@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\FriendshipController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -42,3 +43,13 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth:sanctum')
     ->name('logout');
 
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Friendship routes
+    Route::get('/friends', [FriendshipController::class, 'listFriends']);
+    Route::get('/friends/accepted', [FriendshipController::class, 'listFriendsAccepted']);
+    Route::get('/friends/search', [FriendshipController::class, 'searchUsers']);
+    Route::post('/friends/request', [FriendshipController::class, 'sendRequest']);
+    Route::post('/friends/accept', [FriendshipController::class, 'acceptRequest']);
+    Route::post('/friends/decline', [FriendshipController::class, 'declineRequest']);
+    Route::post('/friends/statuses', [FriendshipController::class, 'getFriendshipStatuses']);
+});

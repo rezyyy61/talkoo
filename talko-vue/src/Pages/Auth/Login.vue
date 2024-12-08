@@ -136,6 +136,7 @@ const submit = async () => {
     const response = await axiosInstance.post('/login', payload);
 
     const { auth_token, user } = response.data;
+    localStorage.setItem('auth_token', auth_token);
     authStore.setToken(auth_token);
     authStore.setUser(user);
 
