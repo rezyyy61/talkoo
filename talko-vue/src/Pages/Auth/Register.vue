@@ -212,6 +212,7 @@ const submit = async () => {
     // Store the token in localStorage
     localStorage.setItem('auth_token', auth_token);
 
+
     // Optionally, set the token as a default header for Axios
     axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${auth_token}`;
 

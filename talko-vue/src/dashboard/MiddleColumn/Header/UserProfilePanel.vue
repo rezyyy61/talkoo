@@ -1,4 +1,4 @@
-<!-- src/dashboard/RightColumn/UserProfileDetail.vue -->
+<!-- src/dashboard/RightColumn/UserProfilePanel.vue -->
 <template>
   <div class="bg-white shadow-lg rounded-3xl p-6 w-full h-full overflow-auto flex flex-col">
     <!-- Header Section -->
