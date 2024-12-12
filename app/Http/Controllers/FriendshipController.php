@@ -2,20 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\FriendRequest;
+use App\Events\FriendRequestUpdated;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Friendship;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\FriendResource;
-use App\Http\Resources\FriendRequestResource;
+
 
 class FriendshipController extends Controller
 {
     /**
      * Search for users by name or email.
      */
-    public function searchUsers(Request $request)
+    public function searchUsers(Request $request): JsonResponse
     {
         $query = $request->input('query');
 
@@ -45,11 +48,9 @@ class FriendshipController extends Controller
     /**
      * Send a friend request to a user.
      */
-    public function sendRequest(Request $request)
+    public function sendRequest(Request $request): JsonResponse
     {
         $recipientId = $request->input('friend_id');
-
-        // Validate the recipient ID
         $validator = Validator::make($request->all(), [
             'friend_id' => 'required|exists:users,id|different:user_id',
         ]);
@@ -63,60 +64,49 @@ class FriendshipController extends Controller
 
         $userId = Auth::id();
 
-        // Prevent sending friend request to self
         if ($userId == $recipientId) {
             return response()->json([
                 'message' => 'You cannot send a friend request to yourself.',
             ], 400);
         }
 
-        // Check if a friendship already exists
         $existingFriendship = Friendship::where(function ($q) use ($userId, $recipientId) {
-            $q->where('user_id', $userId)
-                ->where('friend_id', $recipientId);
-        })
-            ->orWhere(function ($q) use ($userId, $recipientId) {
-                $q->where('user_id', $recipientId)
-                    ->where('friend_id', $userId);
-            })
-            ->first();
+            $q->where('user_id', $userId)->where('friend_id', $recipientId);
+        })->orWhere(function ($q) use ($userId, $recipientId) {
+            $q->where('user_id', $recipientId)->where('friend_id', $userId);
+        })->first();
 
         if ($existingFriendship) {
             if ($existingFriendship->status === 'pending') {
-                return response()->json([
-                    'message' => 'Friend request already pending.',
-                ], 400);
+                return response()->json(['message' => 'Friend request already pending.'], 400);
             } elseif ($existingFriendship->status === 'accepted') {
-                return response()->json([
-                    'message' => 'You are already friends.',
-                ], 400);
+                return response()->json(['message' => 'You are already friends.'], 400);
             } elseif ($existingFriendship->status === 'declined') {
-                // Optionally, allow re-sending after a decline
                 $existingFriendship->status = 'pending';
                 $existingFriendship->save();
-
-                return response()->json([
-                    'message' => 'Friend request re-sent.',
-                ], 200);
+                return response()->json(['message' => 'Friend request re-sent.'], 200);
             }
         }
 
         // Create a new friendship request
-        Friendship::create([
-            'user_id'    => $userId,
-            'friend_id'  => $recipientId,
-            'status'     => 'pending',
+        $friendship = Friendship::create([
+            'user_id' => $userId,
+            'friend_id' => $recipientId,
+            'status' => 'pending',
         ]);
+
+        broadcast(new FriendRequest($friendship))->toOthers();
 
         return response()->json([
             'message' => 'Friend request sent successfully.',
         ], 201);
     }
 
+
     /**
      * Accept a friend request.
      */
-    public function acceptRequest(Request $request)
+    public function acceptRequest(Request $request): JsonResponse
     {
         $friendshipId = $request->input('friendship_id');
 
@@ -151,6 +141,8 @@ class FriendshipController extends Controller
         $friendship->status = 'accepted';
         $friendship->save();
 
+        broadcast(new FriendRequestUpdated($friendship, 'accepted'))->toOthers();
+
         return response()->json([
             'message' => 'Friend request accepted.',
         ], 200);
@@ -159,7 +151,7 @@ class FriendshipController extends Controller
     /**
      * Decline a friend request.
      */
-    public function declineRequest(Request $request)
+    public function declineRequest(Request $request): JsonResponse
     {
         $friendshipId = $request->input('friendship_id');
 
@@ -194,6 +186,8 @@ class FriendshipController extends Controller
         $friendship->status = 'declined';
         $friendship->save();
 
+        broadcast(new FriendRequestUpdated($friendship, 'declined'))->toOthers();
+
         return response()->json([
             'message' => 'Friend request declined.',
         ], 200);
@@ -202,7 +196,7 @@ class FriendshipController extends Controller
     /**
      * List all friends and friend requests with their statuses.
      */
-    public function listFriends()
+    public function listFriends(): JsonResponse
     {
         $user = Auth::user();
 
@@ -232,14 +226,38 @@ class FriendshipController extends Controller
     /**
      * List all accepted friends.
      */
+    /**
+     * List the authenticated user and all accepted friends.
+     */
     public function listFriendsAccepted()
     {
-        $user = Auth::user();
+        // Check if the user is authenticated
+        if (!Auth::check()) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
+        }
 
-        $friends = $user->friends()->get(['users.id', 'users.name', 'users.email']);
+        $userId = Auth::id();
 
-        return response()->json(FriendResource::collection($friends), 200);
+        $friends = Friendship::where(function ($query) use ($userId) {
+            $query->where('user_id', $userId)
+                ->orWhere('friend_id', $userId);
+        })
+            ->where('status', 'accepted')
+            ->with(['user', 'friend'])
+            ->get();
+
+        $friendsList = $friends->map(function ($friendship) use ($userId) {
+            return $friendship->user_id === $userId ? $friendship->friend : $friendship->user;
+        });
+
+        // Return the JSON response with a 200 status code
+        return response()->json([
+            'friends' => $friendsList
+        ], 200);
     }
+
+
+
 
     /**
      * Get friendship statuses between the authenticated user and multiple users.
@@ -247,7 +265,7 @@ class FriendshipController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getFriendshipStatuses(Request $request)
+    public function getFriendshipStatuses(Request $request): JsonResponse
     {
         $friendIds = $request->input('friend_ids', []);
 

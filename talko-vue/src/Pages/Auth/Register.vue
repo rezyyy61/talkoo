@@ -166,8 +166,10 @@ import InputLabel from '@/components/InputLabel.vue';
 import TextInput from '@/components/TextInput.vue';
 import InputError from '@/components/InputError.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
+import {useAuthStore} from "@/stores/auth.js";
 
-const router = useRouter();
+const router = useRouter()
+const authStore = useAuthStore()
 
 const form = reactive({
   name: '',
@@ -206,11 +208,10 @@ const submit = async () => {
 
     const response = await axiosInstance.post('/register', payload);
 
-    // Assuming the backend returns an auth token upon successful registration
-    const { auth_token } = response.data;
-
-    // Store the token in localStorage
+    const { auth_token, user } = response.data;
     localStorage.setItem('auth_token', auth_token);
+    authStore.setToken(auth_token);
+    authStore.setUser(user);
 
 
     // Optionally, set the token as a default header for Axios
