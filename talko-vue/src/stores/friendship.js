@@ -5,9 +5,10 @@ import axiosInstance from '@/axios';
 export const useFriendshipStore = defineStore('friendship', {
   state: () => ({
     friends: [],
+    userFriends: [],
     sentRequests: [],
     receivedRequests: [],
-    friendshipStatuses: {}, // { [userId]: 'pending'|'accepted'|'none' }
+    friendshipStatuses: {},
     isLoading: false,
     error: null,
   }),
@@ -23,6 +24,20 @@ export const useFriendshipStore = defineStore('friendship', {
       } catch (error) {
         console.error("Error fetching friendship data:", error);
         this.error = error.response?.data?.message || 'Failed to fetch friendship data.';
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async fetchFriendAcceptedData() {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        const response = await axiosInstance.get('/friends/accepted');
+        this.friends = response.data.friends || []; // Updated to align with Laravel response
+      } catch (error) {
+        console.error("Error fetching accepted friends:", error);
+        this.error = error.response?.data?.message || 'Failed to fetch accepted friends.';
       } finally {
         this.isLoading = false;
       }

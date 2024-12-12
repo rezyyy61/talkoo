@@ -35,12 +35,12 @@
               {{ viewTitle }}
             </h2>
           </div>
-          <div class="sidebar-content bg-[#ffffff] h-full flex flex-col items-center ">
+          <div class="sidebar-content bg-[#ffffff] h-full flex flex-col ">
             <!-- Conditionally render based on currentView -->
             <div v-if="currentView === 'private'"> <privateChat /></div>
             <div v-else-if="currentView === 'group'"> <GroupChat /> </div>
             <div v-else-if="currentView === 'same-ip'"> <SameIPChat /> </div>
-            <div v-else-if="currentView === 'friends'"> <Friends /> </div>
+            <div v-else-if="currentView === 'friends'">  <Friends :userId="user.id" :userName="user.name" /> </div>
             <div v-else>Default Content</div>
           </div>
           <div class="resizer" @mousedown="initResize"></div>
@@ -49,7 +49,11 @@
         <!-- Right column -->
         <div class="bg-[#8a949d] flex-1 flex items-stretch mr-3">
           <div class="flex-1 flex items-center justify-center">
-            Right Column Content
+            <!--  Right Column Content-->
+            <div class="userHeader"> <UserHeader /> </div>
+            <div class="chatView"></div>
+            <div class="chatInput"></div>
+
           </div>
         </div>
         <!-- User profile  Panel -->
@@ -74,12 +78,14 @@
         </transition>
       </div>
     </div>
+    <!-- Notifications -->
+    <notification />
   </div>
 </template>
 
 
 <script lang="ts">
-import { defineComponent, ref, computed } from 'vue';
+import {defineComponent, ref, computed, onMounted} from 'vue';
 import IconColumn from "@/dashboard/LeftColumn/IconColumn.vue";
 import Header from "@/dashboard/MiddleColumn/Header/Header.vue";
 import UserProfilePanel from "@/dashboard/MiddleColumn/Header/UserProfilePanel.vue";
@@ -88,7 +94,9 @@ import PrivateChat from "@/dashboard/MiddleColumn/PrivateChat.vue";
 import GroupChat from "@/dashboard/MiddleColumn/GroupChat.vue";
 import SameIPChat from "@/dashboard/MiddleColumn/SameIPChat.vue";
 import Friends from "@/dashboard/MiddleColumn/Friends.vue";
-
+import Notification from "@/Pages/Notification.vue";
+import { useAuthStore } from "@/stores/auth"
+import UserHeader from "@/dashboard/RightColumn/UserHeader.vue";
 
 
 export default defineComponent({
@@ -101,6 +109,8 @@ export default defineComponent({
     GroupChat,
     SameIPChat,
     Friends,
+    Notification,
+    UserHeader,
   },
   setup() {
     const sidebarWidth = ref(500);
@@ -110,6 +120,14 @@ export default defineComponent({
     const showUserProfile = ref(false);
     const showAddUserPanel = ref(false);
     const currentView = ref('private');
+    const authStore = useAuthStore();
+    const user = computed(() => authStore.user);
+
+    onMounted(() => {
+      if (!authStore.user.id) {
+        authStore.fetchUser();
+      }
+    });
 
     // Computed property for dynamic header title
     const viewTitle = computed(() => {
@@ -196,7 +214,8 @@ export default defineComponent({
       toggleAddUserPanel,
       currentView,
       viewTitle,
-      headerIcon
+      headerIcon,
+      user,
     };
   },
 });

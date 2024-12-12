@@ -50,22 +50,8 @@
             stroke="currentColor"
             stroke-width="2"
           />
-          <line
-            x1="16"
-            y1="11"
-            x2="22"
-            y2="11"
-            stroke="currentColor"
-            stroke-width="2"
-          />
-          <line
-            x1="19"
-            y1="8"
-            x2="19"
-            y2="14"
-            stroke="currentColor"
-            stroke-width="2"
-          />
+          <line x1="16" y1="11" x2="22" y2="11" stroke="currentColor" stroke-width="2" />
+          <line x1="19" y1="8" x2="19" y2="14" stroke="currentColor" stroke-width="2" />
         </svg>
         <!-- Badge for Received Requests -->
         <span
@@ -87,55 +73,72 @@
         />
       </div>
     </div>
+
+    <!-- Notification Container -->
+    <div class="fixed top-5 right-5 flex flex-col gap-2 z-50">
+      <div
+        v-for="(notification, index) in notifications"
+        :key="index"
+        class="flex items-center p-4 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-800 dark:text-blue-400 transition-opacity duration-300"
+      >
+        <svg
+          class="flex-shrink-0 inline w-4 h-4 me-3"
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"
+          />
+        </svg>
+        <div>
+          <span class="font-medium">{{ notification.title }}</span> {{ notification.message }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
+#### 2. **Script Section**
+Update the logic to handle notifications and dynamic updates:
+
+```javascript
 <script setup>
-import { computed, onMounted, ref, defineEmits } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useFriendshipStore } from "@/stores/friendship.js";
 import { useAuthStore } from "@/stores/auth.js";
-import { useRouter } from "vue-router";
-import { useToast } from "vue-toastification";
 import debounce from "lodash.debounce";
 
-const emit = defineEmits(['view-profile', 'add-user']);
 
+const emit = defineEmits(["view-profile", "add-user"]);
 const friendshipStore = useFriendshipStore();
 const authStore = useAuthStore();
-const router = useRouter();
-const toast = useToast();
-
 const user = computed(() => authStore.user);
 const receivedRequestsCount = computed(() => friendshipStore.receivedRequests.length);
-
-// Local state for search
+const notifications = ref([]);
 const searchQuery = ref("");
 
-// Debounced search handler
 const handleSearch = debounce(async () => {
   if (searchQuery.value.trim() === "") {
-    // ... handle empty search if needed
   }
 }, 300);
 
-// Emit event to open Add User Panel
 const openAddUserPanel = () => {
-  emit('add-user');
+  emit("add-user");
 };
 
-// Emit event to open User Profile Panel
 const viewProfile = () => {
-  emit('view-profile');
+  emit("view-profile");
 };
 
-// Fetch friendship data on component mount
-onMounted(async () => {
-  if (authStore.isAuthenticated) {
-    await friendshipStore.fetchFriendData();
-  }
-});
-</script>
+const addNotification = (title, message) => {
+  const id = Date.now();
+  notifications.value.push({ id, title, message });
 
-<style scoped>
-/* Additional hover effects, if needed */
-</style>
+  setTimeout(() => {
+    notifications.value = notifications.value.filter((notif) => notif.id !== id);
+  }, 6000);
+};
+
+</script>

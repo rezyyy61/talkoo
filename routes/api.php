@@ -52,4 +52,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/friends/accept', [FriendshipController::class, 'acceptRequest']);
     Route::post('/friends/decline', [FriendshipController::class, 'declineRequest']);
     Route::post('/friends/statuses', [FriendshipController::class, 'getFriendshipStatuses']);
+    Route::post('/send-message', [FriendshipController::class, 'sendMessage']);
 });

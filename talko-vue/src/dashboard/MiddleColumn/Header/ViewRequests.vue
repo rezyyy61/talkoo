@@ -60,12 +60,17 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useFriendshipStore } from "@/stores/friendship.js";
+import { useAuthStore } from "@/stores/auth.js";
 import { useToast } from "vue-toastification";
 
 const friendshipStore = useFriendshipStore();
+const authStore = useAuthStore();
+const user = computed(() => authStore.user);
 const toast = useToast();
+
+const notifications = ref([]);
 
 // Using the store directly, no props needed
 const sentRequests = computed(() => friendshipStore.sentRequests);
@@ -75,9 +80,9 @@ const receivedRequests = computed(() => friendshipStore.receivedRequests);
 const acceptRequest = async (friendshipId) => {
   try {
     const message = await friendshipStore.acceptFriendRequest(friendshipId);
-    toast.success(message);
+    toast.success("Friend request accepted successfully.");
   } catch (error) {
-    toast.error(error);
+    toast.error(error.message || "Failed to accept request.");
   }
 };
 
@@ -85,13 +90,13 @@ const acceptRequest = async (friendshipId) => {
 const declineRequest = async (friendshipId) => {
   try {
     const message = await friendshipStore.declineFriendRequest(friendshipId);
-    toast.info(message);
+    toast.info("Friend request declined.");
   } catch (error) {
-    toast.error(error);
+    toast.error(error.message || "Failed to decline request.");
   }
 };
 </script>
 
 <style scoped>
-/* Component-specific styles */
+/* Add custom styles here if needed */
 </style>
