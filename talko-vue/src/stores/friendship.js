@@ -34,7 +34,11 @@ export const useFriendshipStore = defineStore('friendship', {
       this.error = null;
       try {
         const response = await axiosInstance.get('/friends/accepted');
-        this.friends = response.data.friends || []; // Updated to align with Laravel response
+        // Filter out any null or undefined entries and ensure each friend has a valid 'id'
+        this.friends = (response.data.friends || []).filter(
+          (friend) => friend && typeof friend.id === 'number'
+        );
+        console.log("Fetched Accepted Friends:", this.friends); // Debugging
       } catch (error) {
         console.error("Error fetching accepted friends:", error);
         this.error = error.response?.data?.message || 'Failed to fetch accepted friends.';
@@ -42,6 +46,7 @@ export const useFriendshipStore = defineStore('friendship', {
         this.isLoading = false;
       }
     },
+
 
     async sendFriendRequest(friendId) {
       try {
