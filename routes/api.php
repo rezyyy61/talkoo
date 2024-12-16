@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\FriendshipController;
+use App\Http\Controllers\MessageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -53,4 +54,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/friends/decline', [FriendshipController::class, 'declineRequest']);
     Route::post('/friends/statuses', [FriendshipController::class, 'getFriendshipStatuses']);
     Route::post('/send-message', [FriendshipController::class, 'sendMessage']);
+
+    // messages
+    Route::post('/users/{receiverId}/messages', [MessageController::class, 'sendMessage']);
+    Route::get('/conversations/{conversationId}/messages', [MessageController::class, 'getMessages']);
+    Route::get('/conversations/by-user/{receiverId}', [MessageController::class, 'getConversation']);
+    Route::patch('/conversations/{conversationId}/messages/read', [MessageController::class, 'markAsRead']);
+    Route::post('/conversations/{conversationId}/typing', [MessageController::class, 'userTyping']);
 });
