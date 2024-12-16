@@ -125,6 +125,8 @@ import { useAuthStore } from "@/stores/auth";
 import UserHeader from "@/dashboard/RightColumn/UserHeader.vue";
 import ChatInput from "@/dashboard/RightColumn/ChatInput.vue";
 import ChatView from "@/dashboard/RightColumn/ChatView.vue";
+import { useChatStore } from '@/stores/chatStore';
+
 
 export default defineComponent({
   name: 'DashboardComponent',
@@ -209,6 +211,8 @@ export default defineComponent({
     // Method to handle user selection from Friends.vue
     const handleSelectUser = (user: { id: number; name: string; email: string; avatar?: string }) => {
       selectedUser.value = user;
+      const chatStore = useChatStore();
+      chatStore.setReceiverId(user.id);
     };
 
     return {

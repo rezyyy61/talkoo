@@ -38,7 +38,6 @@ export const useFriendshipStore = defineStore('friendship', {
         this.friends = (response.data.friends || []).filter(
           (friend) => friend && typeof friend.id === 'number'
         );
-        console.log("Fetched Accepted Friends:", this.friends); // Debugging
       } catch (error) {
         console.error("Error fetching accepted friends:", error);
         this.error = error.response?.data?.message || 'Failed to fetch accepted friends.';
