@@ -1,42 +1,40 @@
+<!-- src/dashboard/RightColumn/ChatBubble.vue -->
 <template>
   <div :class="bubbleClasses">
     <img
       v-if="!isSender"
       :src="message.sender.avatar || defaultAvatar"
       alt="Receiver Avatar"
-      class="w-10 h-10 rounded-full mr-3 shadow-md border-2 border-white"
+      class="avatar"
     />
-    <div :class="[bubbleBackground, 'max-w-md text-white p-4  rounded-xl shadow-lg']">
-      <div class="text-base">
+    <div :class="[bubbleBackground, 'bubble-content']">
+      <div v-if="message.message_type === 'text'" class="text-content">
         {{ message.content }}
       </div>
-      <div class="text-xs text-gray-200 mt-2">
-        {{ formattedTime }}
-        <span v-if="isSender" class="ml-2">
+      <div v-else-if="message.message_type === 'audio'" class="audio-content">
+        <AudioWaveform :audioUrl="message.content" />
+      </div>
+      <div class="message-footer">
+        <span class="timestamp">{{ formattedTime }}</span>
+        <span v-if="isSender" class="status-icon">
           <svg
             v-if="message.status === 'read'"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            class="w-5 h-5 text-white inline-block"
+            class="icon read-icon"
           >
-            <path
-              d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z"
-            />
-            <path
-              d="M13.292 8.292a1 1 0 011.416 1.416L11.707 13.71a1 1 0 01-1.415 0L9.293 12.41a1 1 0 011.415-1.415L13.29 8.292z"
-            />
+            <path d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z" />
+            <path d="M13.292 8.292a1 1 0 011.416 1.416L11.707 13.71a1 1 0 01-1.415 0L9.293 12.41a1 1 0 011.415-1.415L13.29 8.292z" />
           </svg>
           <svg
             v-else
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            class="w-5 h-5 text-white inline-block"
+            class="icon sent-icon"
           >
-            <path
-              d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z"
-            />
+            <path d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z" />
           </svg>
         </span>
       </div>
@@ -46,9 +44,11 @@
 
 <script>
 import { computed } from 'vue';
+import AudioWaveform from "@/Layouts/voices/AudioWaveform.vue";
 
 export default {
   name: 'ChatBubble',
+  components: { AudioWaveform },
   props: {
     message: {
       type: Object,
@@ -73,7 +73,7 @@ export default {
     });
 
     const bubbleBackground = computed(() => {
-      return isSender.value ? 'bg-[#3652AD]' : 'bg-gray-500';
+      return isSender.value ? 'bg-blue-600' : 'bg-gray-500';
     });
 
     const formattedTime = computed(() => {
@@ -93,83 +93,67 @@ export default {
 </script>
 
 <style scoped>
-.flex {
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+  margin-left: 0.75rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 2px solid #ffffff;
+}
+
+.bubble-content {
+  max-width: 600px;
+  padding: 0.75rem 1rem;
+  border-radius: 1.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
   display: flex;
+  flex-direction: column;
 }
 
-.items-start {
-  align-items: flex-start;
-}
-
-.mb-4 {
-  margin-bottom: 1rem;
-}
-
-.flex-row-reverse {
-  flex-direction: row-reverse;
-}
-
-.rounded-full {
-  border-radius: 9999px;
-}
-
-.text-sm {
+.text-content {
   font-size: 0.875rem;
-}
-
-.text-base {
-  font-size: 1rem;
-}
-
-.text-xs {
-  font-size: 0.75rem;
-}
-
-.max-w-md {
-  max-width: 24rem;
-}
-
-.bg-blue-600 {
-  background-color: #2563eb;
-}
-
-.bg-gray-500 {
-  background-color: #6b7280;
-}
-
-.text-white {
   color: #ffffff;
 }
 
-.p-4 {
-  padding: 1rem;
+.audio-content {
+  width: 100%;
 }
 
-.rounded-xl {
-  border-radius: 0.75rem;
+.message-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 0.5rem;
 }
 
-.shadow-lg {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+.timestamp {
+  font-size: 0.75rem;
+  color: #e2e8f0;
 }
 
-.shadow-md {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.status-icon {
+  margin-left: 0.5rem;
 }
 
-.border-2 {
-  border-width: 2px;
+.icon {
+  width: 16px;
+  height: 16px;
 }
 
-.border-white {
-  border-color: #ffffff;
+.read-icon {
+  color: #48bb78; /* Green for read */
 }
 
-.text-green-400 {
-  color: #10b981;
+.sent-icon {
+  color: #a0aec0; /* Gray for sent */
 }
 
-.text-gray-400 {
-  color: #9ca3af;
+@media (max-width: 640px) {
+  .bubble-content {
+    max-width: 100%;
+  }
 }
 </style>

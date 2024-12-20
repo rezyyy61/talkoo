@@ -1,14 +1,14 @@
 <!-- src/dashboard/RightColumn/ChatInput.vue -->
 <template>
-  <div class="chatInput p-4 bg-[#ffffff] mx-6 rounded-2xl flex items-center space-x-2 relative">
-    <!-- Enhanced Attachment Button with Tooltip -->
+  <div class="chatInput p-4 bg-white mx-6 rounded-2xl flex items-center space-x-2 relative">
+    <!-- Enhanced Attachment Button -->
     <div class="relative group">
       <button
-        @click="triggerFileInput"
-        class="text-gray-400 hover:text-gray-200 focus:outline-none transition-colors duration-200 p-2"
+        class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors duration-200 p-2"
         aria-label="Attach File"
+        @click="triggerFileInput"
       >
-        <!-- New Custom Paperclip SVG -->
+        <!-- Paperclip SVG -->
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-6 w-6"
@@ -30,43 +30,19 @@
       type="file"
       ref="fileInput"
       class="hidden"
-      @change="handleFileChange"
+      @change="handleFileUpload"
     />
 
-    <!-- Voice Button with Tooltip -->
-    <div class="relative group">
-      <button
-        @click="toggleVoiceRecording"
-        class="text-gray-400 hover:text-gray-200 focus:outline-none transition-colors duration-200 p-2"
-        aria-label="Send Voice Message"
-      >
-        <!-- Custom Microphone SVG -->
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M12 1a3 3 0 00-3 3v7a3 3 0 006 0V4a3 3 0 00-3-3z" />
-          <path d="M5 10v2a7 7 0 0014 0v-2" />
-          <path d="M12 19v4" />
-          <path d="M8 23h8" />
-        </svg>
-      </button>
-    </div>
+    <!-- Voice Button (VoiceRecorder) -->
+    <VoiceRecorder />
 
-    <!-- Emoji Picker Button with Tooltip -->
+    <!-- Emoji Picker Button -->
     <div class="relative group">
       <button
-        @click="toggleEmojiPicker"
-        class="text-gray-400 hover:text-gray-200 focus:outline-none transition-colors duration-200 p-2"
+        class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors duration-200 p-2"
         aria-label="Insert Emoji"
       >
-        <!-- Custom Smiley Face SVG -->
+        <!-- Emoji SVG -->
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-6 w-6"
@@ -83,27 +59,35 @@
           <path d="M15 9h.01" />
         </svg>
       </button>
+
+      <!-- Emoji Picker (Placeholder) -->
+      <div class="absolute bottom-16 left-0">
+        <!-- Implement Emoji Picker Here -->
+      </div>
     </div>
 
-    <!-- Input Field -->
-    <input
-      type="text"
-      v-model="messageContent"
-      placeholder="Type your message..."
-      class="flex-1 bg-[#02b0a6] text-white rounded-full px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow duration-200"
-      @keyup.enter="submitMessage"
-      @input="handleTyping"
-      @blur="stopTyping"
-    />
+    <!-- Conditionally Display Input Field or Recording Component -->
+    <div class="relative flex-1">
+      <Recording v-if="isRecording || latestAudioURL" />
+      <input
+        v-else
+        type="text"
+        v-model="messageContent"
+        placeholder="Type your message..."
+        class="w-full bg-teal-500 text-white rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow duration-200"
+        @keyup.enter="submitMessage"
+        @input="handleTyping"
+        @blur="stopTyping"
+      />
+    </div>
 
     <!-- Send Button -->
     <button
       @click="submitMessage"
-      :disabled="!messageContent.trim() || !receiverId"
-      class="ml-2 bg-[#02b0a6] hover:bg-blue-600 text-white rounded-full p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200"
+      :disabled="!canSend"
+      class="ml-2 bg-teal-500 hover:bg-blue-600 text-white rounded-full p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200 relative"
       aria-label="Send Message"
     >
-      <!-- Custom Paper Airplane SVG -->
       <svg
         xmlns="http://www.w3.org/2000/svg"
         class="h-6 w-6 transform rotate-45"
@@ -118,7 +102,7 @@
         <path d="M22 2L15 22L11 13L2 9L22 2Z" />
       </svg>
 
-      <!-- Spinner SVG -->
+      <!-- Spinner SVG while sending -->
       <svg
         v-if="isSending"
         class="animate-spin h-6 w-6 text-white absolute"
@@ -141,49 +125,61 @@
         ></path>
       </svg>
     </button>
-
-    <!-- Emoji Picker (Optional) -->
-    <div v-if="showEmojiPicker" class="absolute bottom-16 left-0">
-      <!-- Implement your emoji picker here -->
-      <div class="bg-white p-2 rounded shadow-lg">
-        <!-- Example Emoji Buttons -->
-        <button @click="insertEmoji('😊')">😊</button>
-        <button @click="insertEmoji('😂')">😂</button>
-        <button @click="insertEmoji('❤️')">❤️</button>
-        <!-- Add more emojis as needed -->
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
-import { ref, computed } from 'vue';
+import WaveSurfer from 'wavesurfer.js';
+import { ref, computed, nextTick, onBeforeUnmount } from 'vue';
 import { useChatStore } from "@/stores/chatStore.js";
 import axiosInstance from "@/axios.js";
+import VoiceRecorder from "@/Layouts/voices/VoiceRecorder.vue";
+import Recording from "@/Layouts/voices/Recording.vue";
+import { useVoiceMessagesStore } from '@/stores/voiceMessages';
 
 export default {
   name: 'ChatInput',
+  components: { VoiceRecorder, Recording },
 
   setup() {
     const messageContent = ref('');
     const chatStore = useChatStore();
-    const fileInput = ref(null);
+    const voiceStore = useVoiceMessagesStore();
     const isSending = ref(false);
-    const showEmojiPicker = ref(false);
-    let typingTimeout = null
-    const TYPING_DELAY = 3000
+    let typingTimeout = null;
+    const TYPING_DELAY = 3000;
+    const fileInput = ref(null);
 
     const receiverId = computed(() => chatStore.receiverId);
+    const isRecording = computed(() => voiceStore.isRecording);
+    const latestAudioURL = computed(() => voiceStore.latestVoiceMessage?.audioURL || null);
+    const recordedBlob = computed(() => voiceStore.latestVoiceMessage?.audioBlob || null);
 
     const submitMessage = async () => {
-      if (messageContent.value.trim() !== '' && receiverId.value) {
+      if ((messageContent.value.trim() !== '' || recordedBlob.value) && receiverId.value) {
         try {
           isSending.value = true;
-          await chatStore.sendMessage(messageContent.value);
-          messageContent.value = '';
+
+          const formData = new FormData();
+          formData.append('content', messageContent.value);
+          if (recordedBlob.value) {
+            formData.append('audio', recordedBlob.value, `voice_${voiceStore.latestVoiceMessage.id}.webm`);
+          }
+
+          const response = await axiosInstance.post(`/users/${receiverId.value}/messages`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+
+          if (response.status === 201) {
+            messageContent.value = '';
+            removeAudio();
+          } else {
+            console.error('Error sending message.');
+          }
         } catch (error) {
           console.error('Error sending message:', error);
-          // Optionally, show an error message to the user
         } finally {
           isSending.value = false;
         }
@@ -191,76 +187,80 @@ export default {
     };
 
     const handleTyping = () => {
-      startTyping()
-      clearTimeout(typingTimeout)
-      typingTimeout = setTimeout(stopTyping, TYPING_DELAY)
-    }
+      startTyping();
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(stopTyping, TYPING_DELAY);
+    };
 
     const startTyping = async () => {
       if (chatStore.conversationId) {
-        await axiosInstance.post(`/conversations/${chatStore.conversationId}/typing`, { is_typing: true });
+        try {
+          await axiosInstance.post(`/conversations/${chatStore.conversationId}/typing`, { is_typing: true });
+        } catch (error) {
+          console.error('Error sending typing status:', error);
+        }
       }
     };
 
     const stopTyping = async () => {
       if (chatStore.conversationId) {
-        await axiosInstance.post(`/conversations/${chatStore.conversationId}/typing`, { is_typing: false });
+        try {
+          await axiosInstance.post(`/conversations/${chatStore.conversationId}/typing`, { is_typing: false });
+        } catch (error) {
+          console.error('Error sending typing status:', error);
+        }
       }
     };
 
+    // File Upload Handling
     const triggerFileInput = () => {
-      if (fileInput.value) {
-        fileInput.value.click();
-      }
+      fileInput.value.click();
     };
 
-    const handleFileChange = (event) => {
+    const handleFileUpload = (event) => {
       const files = event.target.files;
       if (files && files.length > 0) {
-        // Handle file upload
-        console.log('Selected files:', files);
-        // You can implement file upload logic here
+        const file = files[0];
+        event.target.value = '';
       }
     };
 
-    const toggleVoiceRecording = () => {
-      // Implement voice recording functionality
-      console.log('Voice recording toggled');
+    // Remove the latest audio after sending
+    const removeAudio = () => {
+      if (voiceStore.latestVoiceMessage) {
+        voiceStore.removeVoiceMessage(voiceStore.latestVoiceMessage.id);
+      }
     };
 
-    const toggleEmojiPicker = () => {
-      showEmojiPicker.value = !showEmojiPicker.value;
-    };
-
-    const insertEmoji = (emoji) => {
-      messageContent.value += emoji;
-      showEmojiPicker.value = false;
-    };
+    const canSend = computed(() => {
+      return (!isRecording.value) && (
+        messageContent.value.trim() !== '' ||
+        recordedBlob.value
+      ) && receiverId.value && !isSending.value;
+    });
 
     return {
       messageContent,
       submitMessage,
-      fileInput,
       isSending,
-      triggerFileInput,
-      handleFileChange,
-      toggleVoiceRecording,
-      showEmojiPicker,
-      toggleEmojiPicker,
-      insertEmoji,
       receiverId,
       handleTyping,
       startTyping,
-      stopTyping
+      stopTyping,
+      triggerFileInput,
+      handleFileUpload,
+      isRecording,
+      latestAudioURL,
+      recordedBlob,
+      removeAudio,
+      canSend,
+      fileInput,
     };
-  }
+  },
 };
 </script>
 
 <style scoped>
-/* Optional: Add any component-specific styles here */
-
-/* Smooth transitions for SVG transformations */
 button svg {
   transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -270,30 +270,7 @@ button:hover svg {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Tooltip Styling */
-.group:hover .group-hover\:opacity-100 {
-  opacity: 1;
-}
-
-.group .opacity-0 {
-  opacity: 0;
-}
-
-.group .group-hover\:opacity-100 {
-  opacity: 1;
-}
-
-.tooltip {
-  /* Additional tooltip styles if needed */
-}
-
-/* Recording Indicator */
-button.text-red-500 svg {
-  stroke: red;
-  fill: red;
-}
-
-/* Spinner Styling for Sending Message */
+/* Spinner Styling */
 .animate-spin {
   animation: spin 1s linear infinite;
 }
@@ -302,5 +279,29 @@ button.text-red-500 svg {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* Ensure the waveform container has proper height */
+.waveform-container {
+  position: relative;
+  width: 100%;
+  height: 80px; /* Adjust as needed */
+}
+
+/* Play Button Styling */
+.play-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 50%;
+  padding: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.play-button:hover {
+  background: rgba(255, 255, 255, 1);
 }
 </style>
