@@ -4,6 +4,7 @@ import Welcome from "@/Pages/Welcome.vue";
 import Register from "@/Pages/Auth/Register.vue";
 import Login from "@/Pages/Auth/Login.vue";
 import Dashboard from "@/Pages/Dashboard.vue";
+import Test from "@/dashboard/RightColumn/Test.vue";
 
 const routes = [
   {
@@ -27,6 +28,12 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     component: Dashboard,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/test',
+    name: 'Test',
+    component: Test,
     meta: { requiresAuth: true },
   },
 ];

@@ -113,7 +113,6 @@ export const useChatStore = defineStore('chat', {
         window.Echo.leave(channelName);
       }
 
-      console.log(`Subscribing to channel: ${channelName}`);
       window.Echo.private(channelName)
         .listen('MessageSent', (newMessage) => {
           const exists = this.messages.some(msg => msg.id === newMessage.id);

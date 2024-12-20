@@ -18,7 +18,8 @@ class MessageController extends Controller
     public function sendMessage(Request $request, $receiverId)
     {
         $request->validate([
-            'content' => 'required|string|max:1000',
+            'content' => 'nullable|string|max:1000|required_without:audio',
+            'audio' => 'nullable|mimes:webm,mp3,wav|max:10240',
         ]);
 
         $sender = auth()->user();
@@ -26,6 +27,7 @@ class MessageController extends Controller
 
         // Ensure exactly two users
         $conversation = Conversation::where('is_group', false)
+            ->where('is_channel', false)
             ->whereHas('users', function ($query) use ($sender, $receiver) {
                 $query->where('user_id', $sender->id)
                     ->orWhere('user_id', $receiver->id);
@@ -33,15 +35,25 @@ class MessageController extends Controller
             ->first();
 
         if (!$conversation) {
-            $conversation = Conversation::create(['is_group' => false]);
+            $conversation = Conversation::create(['is_group' => false, 'is_channel' => false]);
             $conversation->users()->attach([$sender->id, $receiver->id], ['joined_at' => now()]);
+        }
+
+        if ($request->hasFile('audio')) {
+            $audioPath = $request->file('audio')->store('voice_messages', 'public');
+
+            $messageType = MessageType::AUDIO;
+            $content = asset('storage/' . $audioPath);
+        } else {
+            $messageType = MessageType::TEXT;
+            $content = $request->input('content');
         }
 
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'sender_id' => $sender->id,
-            'message_type' => MessageType::TEXT,
-            'content' => $request->input('content'),
+            'message_type' => $messageType,
+            'content' => $content,
             'status' => MessageStatus::SENT,
         ]);
 

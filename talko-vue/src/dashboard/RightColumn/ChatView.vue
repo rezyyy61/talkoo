@@ -35,7 +35,7 @@
     </div>
 
     <!-- Messages List -->
-    <div v-else-if="chatStore.messages.length > 0" class="flex flex-col space-y-4">
+    <div v-else-if="chatStore.messages.length > 0" class="flex flex-col space-y-2 ">
       <ChatBubble
         v-for="message in chatStore.messages"
         :key="message.id"
