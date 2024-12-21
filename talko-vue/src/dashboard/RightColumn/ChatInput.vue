@@ -37,34 +37,7 @@
     <VoiceRecorder />
 
     <!-- Emoji Picker Button -->
-    <div class="relative group">
-      <button
-        class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors duration-200 p-2"
-        aria-label="Insert Emoji"
-      >
-        <!-- Emoji SVG -->
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <path d="M15 15a3 3 0 11-6 0" />
-          <path d="M9 9h.01" />
-          <path d="M15 9h.01" />
-        </svg>
-      </button>
-
-      <!-- Emoji Picker (Placeholder) -->
-      <div class="absolute bottom-16 left-0">
-        <!-- Implement Emoji Picker Here -->
-      </div>
-    </div>
+    <Emoji @emoji-selected="insertEmoji" />
 
     <!-- Conditionally Display Input Field or Recording Component -->
     <div class="relative flex-1">
@@ -73,6 +46,7 @@
         v-else
         type="text"
         v-model="messageContent"
+        ref="messageInput"
         placeholder="Type your message..."
         class="w-full bg-teal-500 text-white rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow duration-200"
         @keyup.enter="submitMessage"
@@ -135,13 +109,15 @@ import { useChatStore } from "@/stores/chatStore.js";
 import axiosInstance from "@/axios.js";
 import VoiceRecorder from "@/Layouts/voices/VoiceRecorder.vue";
 import Recording from "@/Layouts/voices/Recording.vue";
+import Emoji from "@/Layouts/emoji/Emoji.vue";
 import { useVoiceMessagesStore } from '@/stores/voiceMessages';
 
 export default {
   name: 'ChatInput',
-  components: { VoiceRecorder, Recording },
+  components: { VoiceRecorder, Recording, Emoji },
 
   setup() {
+    const messageInput = ref(null);
     const messageContent = ref('');
     const chatStore = useChatStore();
     const voiceStore = useVoiceMessagesStore();
@@ -239,6 +215,25 @@ export default {
       ) && receiverId.value && !isSending.value;
     });
 
+    const insertEmoji = (emoji) => {
+      if (messageInput.value) {
+        const textarea = messageInput.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const before = messageContent.value.substring(0, start);
+        const after = messageContent.value.substring(end, messageContent.value.length);
+        messageContent.value = before + emoji + after;
+
+        // Move the cursor after the inserted emoji
+        nextTick(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+          textarea.focus();
+        });
+      } else {
+        console.error('Textarea element not found.');
+      }
+    };
+
     return {
       messageContent,
       submitMessage,
@@ -255,6 +250,8 @@ export default {
       removeAudio,
       canSend,
       fileInput,
+      insertEmoji,
+      messageInput,
     };
   },
 };
