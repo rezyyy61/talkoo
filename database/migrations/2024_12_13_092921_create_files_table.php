@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('files', function (Blueprint $table) {
             $table->id();
             $table->foreignId('message_id');
-            $table->string('file-path');
+            $table->string('file_path');
             $table->enum('file_type', ['image', 'video', 'pdf', 'audio', 'other'])->default('other');
             $table->bigInteger('file_size')->unsigned();
             $table->timestamps();

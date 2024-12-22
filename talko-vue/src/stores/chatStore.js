@@ -60,8 +60,6 @@ export const useChatStore = defineStore('chat', {
       }
 
       try {
-        // Just send the message. Do not push locally to avoid duplicates.
-        // If you've removed `->toOthers()` on the server side, the sender will also get the broadcasted message.
         await axiosInstance.post(`/users/${this.receiverId}/messages`, { content });
       } catch (error) {
         console.error('Error sending message:', error);
