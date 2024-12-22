@@ -14,6 +14,19 @@
       <div v-else-if="message.message_type === 'audio'" class="audio-content">
         <AudioWaveform :audioUrl="message.content" />
       </div>
+
+      <div
+        v-else-if="['file','image','video','pdf'].includes(message.message_type)"
+        class="file-content"
+      >
+        <ChatFileDisplay
+          v-for="file in message.files"
+          :key="file.id"
+          :file="file"
+        />
+      </div>
+
+
       <div class="message-footer">
         <span class="timestamp">{{ formattedTime }}</span>
         <span v-if="isSender" class="status-icon">
@@ -45,10 +58,11 @@
 <script>
 import { computed } from 'vue';
 import AudioWaveform from "@/Layouts/voices/AudioWaveform.vue";
+import ChatFileDisplay from "@/Layouts/file/ChatFileDisplay.vue";
 
 export default {
   name: 'ChatBubble',
-  components: { AudioWaveform },
+  components: { AudioWaveform, ChatFileDisplay },
   props: {
     message: {
       type: Object,

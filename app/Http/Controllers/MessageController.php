@@ -8,29 +8,29 @@ use App\Events\MessageRead;
 use App\Events\MessageSent;
 use App\Events\UserTyping;
 use App\Models\Conversation;
+use App\Models\File;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+
 
 class MessageController extends Controller
 {
     public function sendMessage(Request $request, $receiverId)
     {
         $request->validate([
-            'content' => 'nullable|string|max:1000|required_without:audio',
-            'audio' => 'nullable|mimes:webm,mp3,wav|max:10240',
+            'content' => 'nullable|string|max:1000',
+            'file'    => 'nullable|file|max:20480',
+            'audio'   => 'nullable|mimes:webm,mp3,wav|max:10240',
         ]);
 
         $sender = auth()->user();
         $receiver = User::findOrFail($receiverId);
 
-        // Ensure exactly two users
         $conversation = Conversation::where('is_group', false)
             ->where('is_channel', false)
-            ->whereHas('users', function ($query) use ($sender, $receiver) {
-                $query->where('user_id', $sender->id)
-                    ->orWhere('user_id', $receiver->id);
+            ->whereHas('users', function ($q) use ($sender, $receiver) {
+                $q->where('user_id', $sender->id)->orWhere('user_id', $receiver->id);
             }, '=', 2)
             ->first();
 
@@ -39,32 +39,80 @@ class MessageController extends Controller
             $conversation->users()->attach([$sender->id, $receiver->id], ['joined_at' => now()]);
         }
 
+        if ($request->hasFile('file')) {
+            $message = $this->sendFileMessage($request, $conversation);
+            return response()->json(['success' => true, 'data' => $message], 201);
+        }
+
         if ($request->hasFile('audio')) {
             $audioPath = $request->file('audio')->store('voice_messages', 'public');
-
-            $messageType = MessageType::AUDIO;
-            $content = asset('storage/' . $audioPath);
-        } else {
-            $messageType = MessageType::TEXT;
-            $content = $request->input('content');
+            $message = Message::create([
+                'conversation_id' => $conversation->id,
+                'sender_id'       => $sender->id,
+                'message_type'    => MessageType::AUDIO,
+                'content'         => asset('storage/' . $audioPath),
+                'status'          => MessageStatus::SENT,
+            ]);
+            broadcast(new MessageSent($message));
+            return response()->json(['success' => true, 'data' => $message], 201);
         }
 
         $message = Message::create([
             'conversation_id' => $conversation->id,
-            'sender_id' => $sender->id,
-            'message_type' => $messageType,
-            'content' => $content,
-            'status' => MessageStatus::SENT,
+            'sender_id'       => $sender->id,
+            'message_type'    => MessageType::TEXT,
+            'content'         => $request->input('content'),
+            'status'          => MessageStatus::SENT,
         ]);
 
         broadcast(new MessageSent($message));
+        return response()->json(['success' => true, 'data' => $message], 201);
+    }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Message sent successfully',
-            'data' => $message,
+    private function sendFileMessage(Request $request, Conversation $conversation)
+    {
+        $uploadedFile = $request->file('file');
+        $extension    = strtolower($uploadedFile->getClientOriginalExtension());
+        $storedPath   = $uploadedFile->store('file_messages', 'public');
+        $originalName = $uploadedFile->getClientOriginalName();
+        $size         = $uploadedFile->getSize();
+
+        $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp'];
+        $videoExts = ['mp4', 'mov', 'avi', 'mkv'];
+        $pdfExts   = ['pdf'];
+
+        if (in_array($extension, $imageExts)) {
+            $messageType = MessageType::IMAGE;
+            $fileType    = 'image';
+        } elseif (in_array($extension, $videoExts)) {
+            $messageType = MessageType::VIDEO;
+            $fileType    = 'video';
+        } elseif (in_array($extension, $pdfExts)) {
+            $messageType = MessageType::PDF;
+            $fileType    = 'pdf';
+        } else {
+            $messageType = MessageType::FILE;
+            $fileType    = 'other';
+        }
+
+        $message = Message::create([
             'conversation_id' => $conversation->id,
-        ], 201);
+            'sender_id'       => auth()->id(),
+            'message_type'    => $messageType,
+            'content'         => null,
+            'status'          => MessageStatus::SENT,
+        ]);
+
+        File::create([
+            'message_id' => $message->id,
+            'file_path'  => 'storage/' . $storedPath,
+            'file_name'  => $originalName,
+            'file_type'  => $fileType,
+            'file_size'  => $size,
+        ]);
+
+        broadcast(new MessageSent($message));
+        return $message;
     }
 
     public function getConversation(Request $request, $receiverId)

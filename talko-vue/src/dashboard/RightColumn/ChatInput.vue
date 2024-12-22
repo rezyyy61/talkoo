@@ -1,14 +1,11 @@
 <!-- src/dashboard/RightColumn/ChatInput.vue -->
 <template>
   <div class="chatInput p-4 bg-white mx-6 rounded-2xl flex items-center space-x-2 relative">
-    <!-- Enhanced Attachment Button -->
     <div class="relative group">
       <button
         class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors duration-200 p-2"
-        aria-label="Attach File"
         @click="triggerFileInput"
       >
-        <!-- Paperclip SVG -->
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-6 w-6"
@@ -23,9 +20,28 @@
           <path d="M14 7l5 5" />
         </svg>
       </button>
+      <transition name="fade">
+        <div
+          v-if="showFilePreview && selectedFile"
+          class="absolute bottom-full left-0 mb-2  bg-white rounded-lg shadow-lg p-2 z-10"
+        >
+          <!-- کامپوننت نمایش فایل -->
+          <FileDisplay :file="selectedFile" />
+
+          <!-- دکمه بستن اگر بخواهید -->
+          <button
+            class="mt-2 text-sm text-red-600 hover:underline"
+            @click="removeSelectedFile"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </transition>
     </div>
 
-    <!-- Hidden File Input -->
     <input
       type="file"
       ref="fileInput"
@@ -33,13 +49,10 @@
       @change="handleFileUpload"
     />
 
-    <!-- Voice Button (VoiceRecorder) -->
     <VoiceRecorder />
 
-    <!-- Emoji Picker Button -->
     <Emoji @emoji-selected="insertEmoji" />
 
-    <!-- Conditionally Display Input Field or Recording Component -->
     <div class="relative flex-1">
       <Recording v-if="isRecording || latestAudioURL" />
       <input
@@ -55,12 +68,10 @@
       />
     </div>
 
-    <!-- Send Button -->
     <button
       @click="submitMessage"
       :disabled="!canSend"
       class="ml-2 bg-teal-500 hover:bg-blue-600 text-white rounded-full p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200 relative"
-      aria-label="Send Message"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -76,7 +87,6 @@
         <path d="M22 2L15 22L11 13L2 9L22 2Z" />
       </svg>
 
-      <!-- Spinner SVG while sending -->
       <svg
         v-if="isSending"
         class="animate-spin h-6 w-6 text-white absolute"
@@ -103,64 +113,101 @@
 </template>
 
 <script>
-import WaveSurfer from 'wavesurfer.js';
-import { ref, computed, nextTick, onBeforeUnmount } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useChatStore } from "@/stores/chatStore.js";
+import { useVoiceMessagesStore } from '@/stores/voiceMessages';
 import axiosInstance from "@/axios.js";
 import VoiceRecorder from "@/Layouts/voices/VoiceRecorder.vue";
 import Recording from "@/Layouts/voices/Recording.vue";
 import Emoji from "@/Layouts/emoji/Emoji.vue";
-import { useVoiceMessagesStore } from '@/stores/voiceMessages';
+import FileDisplay from "@/Layouts/file/FileDisplay.vue";
 
 export default {
   name: 'ChatInput',
-  components: { VoiceRecorder, Recording, Emoji },
+  components: { VoiceRecorder, Recording, Emoji, FileDisplay },
 
   setup() {
-    const messageInput = ref(null);
-    const messageContent = ref('');
     const chatStore = useChatStore();
     const voiceStore = useVoiceMessagesStore();
-    const isSending = ref(false);
-    let typingTimeout = null;
-    const TYPING_DELAY = 3000;
-    const fileInput = ref(null);
 
-    const receiverId = computed(() => chatStore.receiverId);
+    const messageInput = ref(null);
+    const messageContent = ref('');
+    const fileInput = ref(null);
+    const selectedFile = ref(null);
+    const showFilePreview = ref(false);
+
+    const isSending = ref(false);
     const isRecording = computed(() => voiceStore.isRecording);
     const latestAudioURL = computed(() => voiceStore.latestVoiceMessage?.audioURL || null);
     const recordedBlob = computed(() => voiceStore.latestVoiceMessage?.audioBlob || null);
 
-    const submitMessage = async () => {
-      if ((messageContent.value.trim() !== '' || recordedBlob.value) && receiverId.value) {
-        try {
-          isSending.value = true;
+    const receiverId = computed(() => chatStore.receiverId);
 
-          const formData = new FormData();
-          formData.append('content', messageContent.value);
-          if (recordedBlob.value) {
-            formData.append('audio', recordedBlob.value, `voice_${voiceStore.latestVoiceMessage.id}.webm`);
-          }
+    const triggerFileInput = () => {
+      fileInput.value.click();
+    };
 
-          const response = await axiosInstance.post(`/users/${receiverId.value}/messages`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-
-          if (response.status === 201) {
-            messageContent.value = '';
-            removeAudio();
-          } else {
-            console.error('Error sending message.');
-          }
-        } catch (error) {
-          console.error('Error sending message:', error);
-        } finally {
-          isSending.value = false;
-        }
+    const handleFileUpload = (event) => {
+      const files = event.target.files;
+      if (files && files.length > 0) {
+        selectedFile.value = files[0];
+        showFilePreview.value = true;
+        event.target.value = '';
       }
     };
+
+    const removeAudio = () => {
+      if (voiceStore.latestVoiceMessage) {
+        voiceStore.removeVoiceMessage(voiceStore.latestVoiceMessage.id);
+      }
+    };
+
+    const removeSelectedFile = () => {
+      selectedFile.value = null;
+      showFilePreview.value = false;
+    };
+
+    const submitMessage = async () => {
+      if (
+        !receiverId.value ||
+        (messageContent.value.trim() === '' && !selectedFile.value && !recordedBlob.value)
+      ) {
+        return;
+      }
+
+      isSending.value = true;
+      try {
+        const formData = new FormData();
+
+        if (selectedFile.value) {
+          formData.append('file', selectedFile.value);
+        }
+        if (recordedBlob.value) {
+          formData.append('audio', recordedBlob.value, `voice_${voiceStore.latestVoiceMessage.id}.webm`);
+        }
+        if (messageContent.value.trim()) {
+          formData.append('content', messageContent.value.trim());
+        }
+
+        const response = await axiosInstance.post(`/users/${receiverId.value}/messages`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        if (response.status === 201) {
+          messageContent.value = '';
+          selectedFile.value = null;
+          removeAudio();
+          removeSelectedFile();
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+      } finally {
+        isSending.value = false;
+      }
+    };
+
+    let typingTimeout = null;
+    const TYPING_DELAY = 3000;
 
     const handleTyping = () => {
       startTyping();
@@ -188,74 +235,54 @@ export default {
       }
     };
 
-    // File Upload Handling
-    const triggerFileInput = () => {
-      fileInput.value.click();
-    };
-
-    const handleFileUpload = (event) => {
-      const files = event.target.files;
-      if (files && files.length > 0) {
-        const file = files[0];
-        event.target.value = '';
-      }
-    };
-
-    // Remove the latest audio after sending
-    const removeAudio = () => {
-      if (voiceStore.latestVoiceMessage) {
-        voiceStore.removeVoiceMessage(voiceStore.latestVoiceMessage.id);
-      }
-    };
-
-    const canSend = computed(() => {
-      return (!isRecording.value) && (
-        messageContent.value.trim() !== '' ||
-        recordedBlob.value
-      ) && receiverId.value && !isSending.value;
-    });
-
     const insertEmoji = (emoji) => {
       if (messageInput.value) {
         const textarea = messageInput.value;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const before = messageContent.value.substring(0, start);
-        const after = messageContent.value.substring(end, messageContent.value.length);
+        const after = messageContent.value.substring(end);
         messageContent.value = before + emoji + after;
-
-        // Move the cursor after the inserted emoji
         nextTick(() => {
           textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
           textarea.focus();
         });
-      } else {
-        console.error('Textarea element not found.');
       }
     };
 
+    const canSend = computed(() => {
+      return (
+        !isRecording.value &&
+        (messageContent.value.trim() !== '' || recordedBlob.value || selectedFile.value) &&
+        receiverId.value &&
+        !isSending.value
+      );
+    });
+
     return {
       messageContent,
-      submitMessage,
       isSending,
-      receiverId,
-      handleTyping,
-      startTyping,
-      stopTyping,
-      triggerFileInput,
-      handleFileUpload,
       isRecording,
       latestAudioURL,
       recordedBlob,
-      removeAudio,
-      canSend,
       fileInput,
-      insertEmoji,
+      selectedFile,
       messageInput,
+      receiverId,
+      submitMessage,
+      handleFileUpload,
+      triggerFileInput,
+      removeAudio,
+      handleTyping,
+      insertEmoji,
+      canSend,
+      showFilePreview,
+      removeSelectedFile,
     };
   },
 };
 </script>
+
 
 <style scoped>
 button svg {
@@ -300,5 +327,11 @@ button:hover svg {
 
 .play-button:hover {
   background: rgba(255, 255, 255, 1);
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style>
