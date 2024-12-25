@@ -33,8 +33,13 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
         opcache \
         pcntl
 
+# Install phpredis extension
+RUN pecl install redis \
+    && docker-php-ext-enable redis
+
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
+
 
 # Create the user
 RUN groupadd -g ${USER_GID} www \
