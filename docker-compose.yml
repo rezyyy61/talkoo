@@ -66,6 +66,32 @@ services:
         networks:
             - talkoo_network
 
+    scheduler:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: talkoo_scheduler
+        command: sh -c "while true; do php artisan schedule:run >> /dev/null 2>&1; sleep 60; done"
+        environment:
+            - APP_ENV=local
+            - APP_DEBUG=true
+            - APP_KEY=base64:...
+            - DB_CONNECTION=mysql
+            - DB_HOST=mysql
+            - DB_PORT=3306
+            - DB_DATABASE=talkoo_db
+            - DB_USERNAME=talkoo_user
+            - DB_PASSWORD=root
+        depends_on:
+            - app
+            - mysql
+            - redis
+        volumes:
+            - .:/var/www
+        networks:
+            - talkoo_network
+
+
 
 volumes:
     mysql_data:

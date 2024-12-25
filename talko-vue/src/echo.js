@@ -1,5 +1,6 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
+// import {useAuthStore} from "@/stores/auth.js";
 window.Pusher = Pusher;
 
 window.Echo = new Echo({
@@ -21,3 +22,21 @@ window.Echo = new Echo({
   },
 });
 
+// const userStore = useAuthStore();
+
+
+// window.Echo.join(`userOnline.${userStore.user.id}`)
+//   .here((users) => {
+//     users.forEach(user => {
+//       userStore.updateUserStatus(user.id, user.is_online);
+//     });
+//   })
+//   .joining((user) => {
+//     userStore.updateUserStatus(user.id, true);
+//   })
+//   .leaving((user) => {
+//     userStore.updateUserStatus(user.id, false);
+//   })
+//   .listen('UserStatusUpdated', (e) => {
+//     userStore.updateUserStatus(e.user_id, e.is_online);
+//   });
