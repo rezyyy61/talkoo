@@ -32,6 +32,16 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->string('password')),
         ]);
 
+        $profile = $user->profile()->create([
+            'user_id' => $user->id,
+            'ip_address' => $request->ip(),
+            'is_online' => true,
+            'last_activity' => now(),
+            'avatar' => '#f3f4f6',
+        ]);
+
+        $user->load('profile');
+
         // Dispatch registered event
         event(new Registered($user));
 

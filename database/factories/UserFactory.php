@@ -31,6 +31,17 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
         ];
     }
+    public function configure(): static
+    {
+        return $this->afterCreating(function ($user) {
+            $user->profile()->create([
+                'ip_address' => '172.24.0.1',
+                'is_online' => true,
+                'last_activity' => now(),
+                'avatar' => '#f3f4f6',
+            ]);
+        });
+    }
 
     /**
      * Indicate that the model's email address should be unverified.

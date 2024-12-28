@@ -21,7 +21,12 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
     return $conversation->users->contains($user->id);
 });
 
-Broadcast::channel('userOnline.{userId}', function ($user, $userId) {
-    return (int)$user->id === (int)$userId;
-});
+Broadcast::channel('sameIp.{ipEncoded}', function ($user, $ipEncoded) {
 
+    $ip = str_replace('_', '.', $ipEncoded);
+
+    if ($user->profile && $user->profile->ip_address === $ip) {
+        return true;
+    }
+    return false;
+});

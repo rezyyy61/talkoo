@@ -141,6 +141,7 @@ const submit = async () => {
     authStore.setUser(user);
 
     axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${auth_token}`;
+    await authStore.fetchUser();
     status.value = 'Logged in successfully!';
     router.push('/dashboard');
   } catch (error) {

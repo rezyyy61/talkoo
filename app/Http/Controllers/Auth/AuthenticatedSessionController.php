@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Events\UserStatusUpdated;
+
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -40,21 +39,20 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request)
     {
         $user = $request->user();
+
+        $profile = $user->profile;   if ($profile) {
+        $profile->update(['is_online' => false]);
+
+    } else {
+        Log::info('No profile found for user: ' . $user->id);
+    }
+
         if ($user) {
-            $user->tokens()->delete();
+            $user->tokens->each(function ($token) {
+                $token->delete();
+            });
 
-            $profile = $user->profile;
-            if ($profile) {
-                $profile->update(['is_online' => false]);
-                event(new UserStatusUpdated($user->id, false));
-            }
-
-            Auth::logout();
-
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            return response()->json(['message' => 'Logged out successfully']);
+            return response()->json(['message' => 'Logout successful']);
         }
 
         return response()->json(['message' => 'Unauthorized'], 401);

@@ -98,7 +98,6 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
-      // If already listening to this conversation, do nothing
       if (this.isListening) {
         return;
       }

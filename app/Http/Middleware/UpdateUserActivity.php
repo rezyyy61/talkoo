@@ -2,10 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Events\UserStatusUpdated;
+use App\Models\UserProfile;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class UpdateUserActivity
@@ -22,7 +23,7 @@ class UpdateUserActivity
                         'ip_address' => $request->ip(),
                         'is_online' => true,
                         'last_activity' => now(),
-                        'avatar' => $this->getRandomAvatar(),
+                        'avatar' => '#f3f4f6',
                     ]);
                 }
 
@@ -34,12 +35,15 @@ class UpdateUserActivity
                     ]);
 
                     if (is_null($profile->avatar)) {
-                        $profile->update(['avatar' => $this->getRandomAvatar()]);
+                        $profile->update(['avatar' => '#f3f4f6']);
                     }
 
-                    // **Set the Redis cache key for online status**
-                    Cache::put("user-{$user->id}-online", true, now()->addMinutes(1));
-
+                    $sameIpUsers = UserProfile::where('ip_address', $profile->ip_address)
+                        ->where('is_online', true)
+                        ->with('user:id,name')
+                        ->get();
+                    $ipEncoded = str_replace('.', '_', $profile->ip_address);
+                    broadcast(new UserStatusUpdated($sameIpUsers, $ipEncoded))->toOthers();
                 }
             }
         } catch (\Exception $e) {
@@ -52,21 +56,4 @@ class UpdateUserActivity
         return $next($request);
     }
 
-    private function getRandomAvatar()
-    {
-        $avatars = [
-            '#FF5733', // Vibrant Orange
-            '#33FF57', // Fresh Green
-            '#3357FF', // Bright Blue
-            '#FF33A8', // Hot Pink
-            '#FF8F33', // Sunset Orange
-            '#33FFF5', // Aqua Blue
-            '#8D33FF', // Purple Haze
-            '#FF3333', // Red Passion
-            '#33FFB5', // Mint Green
-            '#FFC733', // Golden Yellow
-        ];
-
-        return $avatars[array_rand($avatars)];
-    }
 }

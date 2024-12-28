@@ -147,7 +147,7 @@ export default defineComponent({
   setup() {
     const showUserProfile = ref(false);
     const showAddUserPanel = ref(false);
-    const currentView = ref('friends'); // Set to 'friends' by default
+    const currentView = ref('same-ip'); // Set to 'friends' by default
     const authStore = useAuthStore();
     const user = computed(() => authStore.user);
     const selectedUser = ref<null | { id: number; name: string; email: string; avatar?: string }>(null);

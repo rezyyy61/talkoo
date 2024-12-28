@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\UserProfile;
 use Carbon\Carbon;
-use App\Events\UserStatusUpdated;
 
 class UpdateOfflineUsers extends Command
 {
@@ -33,7 +32,6 @@ class UpdateOfflineUsers extends Command
 
         foreach ($offlineUsers as $profile) {
             $profile->update(['is_online' => false]);
-            event(new UserStatusUpdated($profile->user_id, false));
         }
 
         $this->info('Offline users updated successfully.');
