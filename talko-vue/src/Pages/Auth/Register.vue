@@ -212,9 +212,7 @@ const submit = async () => {
     localStorage.setItem('auth_token', auth_token);
     authStore.setToken(auth_token);
     authStore.setUser(user);
-
-
-    // Optionally, set the token as a default header for Axios
+    await authStore.fetchUser();
     axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${auth_token}`;
 
     // Redirect to dashboard

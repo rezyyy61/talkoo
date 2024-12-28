@@ -146,42 +146,32 @@ import { defineEmits, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth.js';
 import { useRouter } from 'vue-router';
 
-// Define the emits for this component
 const emit = defineEmits(['close-profile']);
-
-// Path to a default avatar image. Replace with your desired default image URL if necessary.
 const defaultAvatar = 'https://via.placeholder.com/150';
 
-// Access the auth store and router
 const authStore = useAuthStore();
 const router = useRouter();
 
-// Computed property to access user data
 const user = computed(() => authStore.user);
 
-// Computed property for user status
 const userStatus = computed(() => {
   return user.value.isOnline ? 'Online' : `Last active: ${formatLastActive(user.value.lastActive)}`;
 });
 
-// Computed property for status class
 const statusClass = computed(() => {
   return user.value.isOnline ? 'text-green-500' : 'text-gray-500';
 });
 
-// Computed property for formatted last active time
 const formattedLastActive = computed(() => {
   return formatLastActive(user.value.lastActive);
 });
 
-// Function to format the last active time
 function formatLastActive(date) {
   if (!date) return 'N/A';
   const d = new Date(date);
   return d.toLocaleString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-// Mock data for recent chats (Replace with actual data from your backend)
 const recentChats = [
   {
     id: 1,
@@ -194,36 +184,28 @@ const recentChats = [
     id: 2,
     name: 'Jane Smith',
     avatar: 'https://via.placeholder.com/150',
-    lastMessage: 'Let\'s catch up tomorrow!',
+    lastMessage: "Let's catch up tomorrow!",
     time: '5h ago',
   },
-  // Add more chats as needed
 ];
 
-// Logout function
-const logout = () => {
-  authStore.clearAuth();
-  router.push('/login');
+const logout = async () => {
+  await authStore.logOut();
+  await router.push('/login');
 };
 
-// Close profile function
 const closeProfile = () => {
   emit('close-profile');
 };
 
-// Start new chat function (Implement as needed)
 const startNewChat = () => {
-  // Logic to start a new chat
   console.log('Starting a new chat...');
 };
 
-// Edit profile function (Implement as needed)
 const editProfile = () => {
-  // Logic to edit profile, e.g., navigate to edit profile page
   console.log('Editing profile...');
 };
 
-// Computed property to check if there are any social links
 const hasSocialLinks = computed(() => {
   return user.value.social && Object.keys(user.value.social).length > 0;
 });

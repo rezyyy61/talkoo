@@ -8,15 +8,13 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\FriendshipController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\SameIpUsersController;
 use App\Http\Controllers\UserProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum', 'is_online'])->group(function () {
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
-
+    Route::get('/user', [UserProfileController::class, 'getUser']);
     // Friendship routes
     Route::get('/friends', [FriendshipController::class, 'listFriends']);
     Route::get('/friends/accepted', [FriendshipController::class, 'listFriendsAccepted']);
@@ -37,7 +35,7 @@ Route::middleware(['auth:sanctum', 'is_online'])->group(function () {
 
 // Routes accessible without authentication
 Route::post('/register', [RegisteredUserController::class, 'store'])
-    ->middleware('guest')
+    ->middleware('guest',  'is_online')
     ->name('register');
 
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])
