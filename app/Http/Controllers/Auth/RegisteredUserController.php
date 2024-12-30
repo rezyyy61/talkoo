@@ -4,15 +4,21 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\GroupService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 
 class RegisteredUserController extends Controller
 {
+
+    protected $groupService;
+
+    public function __construct(GroupService $groupService)
+    {
+        $this->groupService = $groupService;
+    }
     /**
      * Handle an incoming registration request.
      *
@@ -44,6 +50,8 @@ class RegisteredUserController extends Controller
 
         // Dispatch registered event
         event(new Registered($user));
+
+        $this->groupService->createGroupIfNotExists($user);
 
         // Create Sanctum token
         $token = $user->createToken('auth_token')->plainTextToken;

@@ -92,6 +92,7 @@
 <script lang="ts">
 import { defineComponent, onMounted, ref, computed } from 'vue';
 import { useFriendshipStore } from '@/stores/friendship';
+import axiosInstance from '@/axios';
 
 export default defineComponent({
   name: 'Friends',
@@ -104,15 +105,12 @@ export default defineComponent({
       type: String,
       required: true,
     },
-    selectedUser: {
-      type: Object as () => { id: number; name: string; email: string; avatar?: string },
-      default: null,
-    },
   },
   emits: ['select-user'],
   setup(props, { emit }) {
     const friendshipStore = useFriendshipStore();
     const searchQuery = ref('');
+    const selectedUser = ref(null);
 
     onMounted(() => {
       friendshipStore.fetchFriendAcceptedData();
@@ -135,9 +133,19 @@ export default defineComponent({
     };
 
     // Method to emit the selected user
-    const selectUser = (user: { id: number; name: string; email: string; avatar?: string }) => {
-      emit('select-user', user);
+    const selectUser = async (friend: { id: number }) => {
+      try {
+        // Remove '/api' from the URL as it's already included in the baseURL
+        const response = await axiosInstance.get(`/friend/${friend.id}`);
+        const data = response.data;
+        // Update the selected user and emit the event
+        selectedUser.value = friend;
+        emit('select-user', data);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
     };
+
 
     // Computed property for filtered friends based on search query
     const filteredFriends = computed(() => {
@@ -152,7 +160,7 @@ export default defineComponent({
       );
     });
 
-    return { friendshipStore, defaultAvatar, statusBadgeClass, selectUser, searchQuery, filteredFriends };
+    return { friendshipStore, defaultAvatar, statusBadgeClass, selectUser, searchQuery, filteredFriends, selectedUser };
   },
 });
 </script>

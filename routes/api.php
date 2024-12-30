@@ -17,6 +17,7 @@ Route::middleware(['auth:sanctum', 'is_online'])->group(function () {
     Route::get('/user', [UserProfileController::class, 'getUser']);
     // Friendship routes
     Route::get('/friends', [FriendshipController::class, 'listFriends']);
+    Route::get('/friend/{id}', [FriendshipController::class, 'getSelectedUserWithProfile']);
     Route::get('/friends/accepted', [FriendshipController::class, 'listFriendsAccepted']);
     Route::get('/friends/search', [FriendshipController::class, 'searchUsers']);
     Route::post('/friends/request', [FriendshipController::class, 'sendRequest']);

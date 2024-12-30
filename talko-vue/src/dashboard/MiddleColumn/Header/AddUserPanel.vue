@@ -1,7 +1,7 @@
 <template>
   <div class="sidebar w-[400px] bg-white shadow-lg rounded-xl flex flex-col"
        style="height: calc(100vh - 100px);">
-    <!-- Header -->
+    <!-- ChatHeader -->
     <div class="middle-header bg-[#8a949d] h-[80px] flex items-center justify-between px-6 text-white rounded-t-xl">
       <h2 class="text-lg font-semibold font-sans">Friends</h2>
       <button @click="emitClose" class="text-xl hover:text-gray-300">&times;</button>

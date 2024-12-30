@@ -1,27 +1,24 @@
-// src/stores/auth.js
 import { defineStore } from 'pinia';
 import axiosInstance from '@/axios';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     authToken: localStorage.getItem('auth_token') || null,
-    user: JSON.parse(localStorage.getItem('user')) || {
-      id: null,
-      name: '',
-      email: '',
-      avatar: '',
-      profile: {
-        id: null,
-        user_id: null,
-        ip_address: '',
-        is_online: false,
-        last_activity: '',
-        avatar: '',
-      },
-      social: {},
-    },
+    user: JSON.parse(localStorage.getItem('user')) || null,
   }),
+
   actions: {
+    async fetchUser() {
+      if (!this.authToken) return;
+      try {
+        const response = await axiosInstance.get('/user');
+        this.setUser(response.data.user);
+      } catch (error) {
+        console.error("Error fetching user data", error);
+        this.clearUser(); // Clear user data if there's an error
+      }
+    },
+
     setToken(token) {
       this.authToken = token;
       localStorage.setItem('auth_token', token);
@@ -31,65 +28,42 @@ export const useAuthStore = defineStore('auth', {
         window.Echo.options.auth.headers['Authorization'] = `Bearer ${token}`;
       }
     },
-    setUser(user) {
-      this.user = {
-        ...user,
-        profile: {
-          id: user.profile?.id ?? null,
-          user_id: user.profile?.user_id ?? null,
-          ip_address: user.profile?.ip_address ?? '',
-          is_online: user.profile?.is_online ?? false,
-          last_activity: user.profile?.last_activity ?? '',
-          avatar: user.profile?.avatar ?? '',
-        },
-        social: user.social || {},
-      };
-      localStorage.setItem('user', JSON.stringify(this.user));
+
+    setUser(userData) {
+      this.user = userData; // Store the user data in the Pinia state
+      localStorage.setItem('user', JSON.stringify(userData)); // Save user data to localStorage
     },
 
-    async fetchUser() {
-      if (!this.authToken) return;
-      try {
-        const response = await axiosInstance.get('/user');
-        this.setUser(response.data);
-      } catch (error) {
-        console.error('Failed to fetch user:', error);
-        await this.logOut();
-      }
+    clearUser() {
+      this.user = null;
+      this.authToken = null;
+      localStorage.removeItem('user');
+      localStorage.removeItem('auth_token');
     },
 
     async logOut() {
       try {
         await axiosInstance.post('/logout');
-        this.authToken = null;
-        this.user = {
-          id: null,
-          name: '',
-          email: '',
-          avatar: '',
-          profile: {
-            id: null,
-            user_id: null,
-            ip_address: null,
-            is_online: false,
-            last_activity: null,
-            avatar: null,
-          },
-          social: {},
-          projects: 0,
-          tasks: 0,
-          phone: '',
-          address: '',
-        };
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
+        this.clearUser();  // Clear user and token data
         delete axiosInstance.defaults.headers.common['Authorization'];
+        if (window.Echo) {
+          window.Echo.options.auth.headers['Authorization'] = ''; // Clear WebSocket auth headers
+        }
       } catch (error) {
         console.error('Logout error:', error.response ? error.response.data : error.message);
       }
     },
   },
+
   getters: {
     isAuthenticated: (state) => !!state.authToken,
+    getUserProfile: (state) => state.user?.profile,
   },
+
+  // Automatically fetch user data if authenticated
+  onBeforeMount() {
+    if (this.authToken) {
+      this.fetchUser();
+    }
+  }
 });

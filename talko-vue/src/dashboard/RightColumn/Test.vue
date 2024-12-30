@@ -30,7 +30,7 @@
         {{ formattedTime }}
       </div>
 
-      <!-- نوار پیشرفت انیمیشنی -->
+
       <div class="rounded-full h-4 overflow-hidden relative">
         <div class="animated-bar"></div>
       </div>

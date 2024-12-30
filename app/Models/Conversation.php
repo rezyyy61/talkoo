@@ -14,7 +14,7 @@ class Conversation extends Model
     {
         return $this->belongsToMany(User::class, 'conversation_user')
             ->withTimestamps()
-            ->withPivot(['joined_at', 'role']);
+            ->withPivot(['joined_at', 'role', 'ip_address']);
     }
 
     public function messages(): HasMany
