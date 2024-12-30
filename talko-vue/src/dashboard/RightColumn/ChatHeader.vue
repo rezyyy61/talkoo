@@ -1,0 +1,138 @@
+<template>
+  <div class="user-header p-4 bg-[#8a949d] shadow rounded-lg flex items-center">
+    <!-- Avatar Section -->
+    <div class="relative flex-shrink-0">
+      <img
+        v-if="user.profile.avatar && !isColorCode(user.profile.avatar)"
+        :src="user.profile.avatar"
+        alt="Avatar"
+        class="w-20 h-20 rounded-full object-cover border-2 border-gray-300 hover:border-gray-500"
+      />
+      <div
+        v-else
+        :style="{ backgroundColor: user.profile.avatar || defaultAvatar }"
+        class="w-20 h-20 rounded-full flex items-center justify-center text-gray-600 text-xl font-bold border-2 border-gray-300 hover:border-gray-500"
+      >
+        {{ getInitials(user.name) }}
+      </div>
+
+      <!-- Online Indicator -->
+      <span
+        class="absolute bottom-1 right-1 block w-3 h-3 rounded-full"
+        :class="{
+          'bg-green-500': user.profile?.is_online,
+          'bg-gray-400': !user.profile?.is_online,
+        }"
+      ></span>
+    </div>
+
+    <!-- Details Section -->
+    <div class="ml-4 flex-1">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white">{{ user.name }}</h2>
+      <p class="text-sm text-green-600 dark:text-green-400" v-if="user.profile?.is_online">
+      </p>
+      <p class="text-sm text-gray-600 dark:text-white" v-else>
+      {{ getLastActivity(user.profile?.last_activity) }}
+      </p>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { defineComponent, PropType } from 'vue';
+
+export default defineComponent({
+  name: 'ChatHeader',
+  props: {
+    user: {
+      type: Object as PropType<{
+        id: number;
+        name: string;
+        email: string;
+        profile?: {
+          id: number;
+          user_id: number;
+          ip_address: string;
+          is_online: number;
+          last_activity: string;
+          avatar: string;
+          created_at: string;
+          updated_at: string;
+        };
+      }>,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      defaultAvatar: '#f3f4f6',
+    };
+  },
+  methods: {
+    isColorCode(avatar: string): boolean {
+      const colorCodeRegex = /^#([0-9A-F]{3}){1,2}$/i;
+      return colorCodeRegex.test(avatar);
+    },
+    getInitials(name: string): string {
+      if (!name) return '';
+      const names = name.trim().split(' ');
+      if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+      return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+    },
+    getLastActivity(dateString: string): string {
+      if (!dateString) return 'Unknown time';
+
+      const now = new Date();
+      const activityDate = new Date(dateString);
+
+      const diffInMilliseconds = now.getTime() - activityDate.getTime();
+      const diffInMinutes = Math.floor(diffInMilliseconds / (1000 * 60));
+      const diffInHours = Math.floor(diffInMilliseconds / (1000 * 60 * 60));
+      const diffInDays = Math.floor(diffInMilliseconds / (1000 * 60 * 60 * 24));
+
+      if (diffInMinutes < 1) {
+        return 'Just now';
+      } else if (diffInMinutes < 60) {
+        return `${diffInMinutes} minutes ago`;
+      } else if (diffInHours < 24) {
+        return `${diffInHours} hours ago`;
+      } else if (diffInDays === 1) {
+        return 'Yesterday';
+      } else if (diffInDays < 7) {
+        return `${diffInDays} days ago`;
+      } else if (diffInDays < 30) {
+        return `${Math.floor(diffInDays / 7)} weeks ago`;
+      } else {
+        return activityDate.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+      }
+    },
+  },
+});
+</script>
+
+<style scoped>
+.user-header {
+  display: flex;
+  align-items: center;
+  background-color: #8a949d;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 0.5rem;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ml-4 {
+  margin-left: 1rem;
+}
+</style>

@@ -17,7 +17,7 @@
 
     <!-- Main content, Right Column, and Add User Panel -->
     <div class="flex-1 flex flex-col glass-effect relative overflow-hidden">
-      <!-- Header -->
+      <!-- ChatHeader -->
       <div class="h-[90px]">
         <Header @view-profile="toggleUserProfile" @add-user="toggleAddUserPanel" />
       </div>
@@ -59,9 +59,12 @@
 
         <!-- Right column -->
         <div class="bg-[#8a949d] flex-1 flex flex-col mr-3 ml-8">
-          <!-- Header Section -->
-          <div v-if="selectedUser" class="userHeader mb-4">
-            <UserHeader :user="selectedUser" />
+          <!-- ChatHeader Section -->
+          <div v-if="currentView === 'same-ip'" class="userHeader mb-4">
+            <ChatHeader :user="groupHeader" />
+          </div>
+          <div v-else-if="selectedUser" class="userHeader mb-4">
+            <ChatHeader :user="selectedUser" />
           </div>
           <div v-else class="userHeader mb-4">
             <!-- Placeholder or default content -->
@@ -113,7 +116,6 @@
 <script lang="ts">
 import { defineComponent, ref, computed, onMounted } from 'vue';
 import IconColumn from "@/dashboard/LeftColumn/IconColumn.vue";
-import Header from "@/dashboard/MiddleColumn/Header/Header.vue";
 import UserProfilePanel from "@/dashboard/MiddleColumn/Header/UserProfilePanel.vue";
 import AddUserPanel from "@/dashboard/MiddleColumn/Header/AddUserPanel.vue";
 import PrivateChat from "@/dashboard/MiddleColumn/PrivateChat.vue";
@@ -122,41 +124,42 @@ import SameIPChat from "@/dashboard/MiddleColumn/SameIPChat.vue";
 import Friends from "@/dashboard/MiddleColumn/Friends.vue";
 import Notification from "@/Pages/Notification.vue";
 import { useAuthStore } from "@/stores/auth";
-import UserHeader from "@/dashboard/RightColumn/UserHeader.vue";
+import ChatHeader from "@/dashboard/RightColumn/ChatHeader.vue";
 import ChatInput from "@/dashboard/RightColumn/ChatInput.vue";
 import ChatView from "@/dashboard/RightColumn/ChatView.vue";
 import { useChatStore } from '@/stores/chatStore';
+import Header from "@/dashboard/MiddleColumn/Header/Header.vue";
+import ChatFileDisplay from "@/Layouts/file/ChatFileDisplay.vue";
 
 
 export default defineComponent({
   name: 'DashboardComponent',
+  computed: {
+    ChatFileDisplay() {
+      return ChatFileDisplay
+    }
+  },
   components: {
+    Header,
     AddUserPanel,
     UserProfilePanel,
-    Header,
+    ChatHeader,
     IconColumn,
     PrivateChat,
     GroupChat,
     SameIPChat,
     Friends,
     Notification,
-    UserHeader,
     ChatInput,
-    ChatView
+    ChatView,
   },
   setup() {
     const showUserProfile = ref(false);
     const showAddUserPanel = ref(false);
-    const currentView = ref('same-ip'); // Set to 'friends' by default
+    const currentView = ref('same-ip');
     const authStore = useAuthStore();
     const user = computed(() => authStore.user);
-    const selectedUser = ref<null | { id: number; name: string; email: string; avatar?: string }>(null);
-
-    onMounted(() => {
-      if (!authStore.user.id) {
-        authStore.fetchUser();
-      }
-    });
+    const selectedUser = ref(null)
 
     // Computed property for dynamic header title
     const viewTitle = computed(() => {
@@ -190,6 +193,20 @@ export default defineComponent({
       }
     });
 
+    const groupHeader = computed(() => {
+      if (currentView.value === 'same-ip') {
+        return {
+          id: 0,
+          name: 'Group',
+          profile: {
+            avatar: '#d1d5db',
+            is_online: false,
+          },
+        };
+      }
+      return selectedUser.value;
+    });
+
     const toggleUserProfile = () => {
       if (!showUserProfile.value) {
         showUserProfile.value = true;
@@ -209,11 +226,12 @@ export default defineComponent({
     };
 
     // Method to handle user selection from Friends.vue
-    const handleSelectUser = (user: { id: number; name: string; email: string; avatar?: string }) => {
+    const handleSelectUser = (user) => {
       selectedUser.value = user;
       const chatStore = useChatStore();
       chatStore.setReceiverId(user.id);
     };
+
 
     return {
       showUserProfile,
@@ -222,6 +240,7 @@ export default defineComponent({
       toggleAddUserPanel,
       currentView,
       viewTitle,
+      groupHeader,
       headerIcon,
       user,
       selectedUser,

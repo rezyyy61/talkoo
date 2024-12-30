@@ -314,4 +314,15 @@ class FriendshipController extends Controller
 
         return response()->json($statuses, 200);
     }
+
+    public function getSelectedUserWithProfile($id)
+    {
+        $user = User::with('profile')->find($id);
+
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+
+        return response()->json($user);
+    }
 }

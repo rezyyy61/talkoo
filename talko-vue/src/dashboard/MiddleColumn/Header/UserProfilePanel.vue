@@ -1,7 +1,7 @@
 <!-- src/dashboard/RightColumn/UserProfilePanel.vue -->
 <template>
   <div class="bg-white shadow-lg rounded-3xl p-6 w-full h-full overflow-auto flex flex-col">
-    <!-- Header Section -->
+    <!-- ChatHeader Section -->
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold text-gray-800">My Profile</h2>
       <button @click="closeProfile" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>

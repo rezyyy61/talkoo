@@ -4,12 +4,19 @@ namespace App\Http\Controllers\Auth;
 
 
 use App\Http\Controllers\Controller;
+use App\Services\GroupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class AuthenticatedSessionController extends Controller
 {
+    protected $groupService;
+
+    public function __construct(GroupService $groupService)
+    {
+        $this->groupService = $groupService;
+    }
     /**
      * Handle an incoming authentication request.
      */
@@ -25,6 +32,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $user = Auth::user();
+        $this->groupService->createGroupIfNotExists($user);
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
