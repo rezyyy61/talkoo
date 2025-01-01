@@ -72,16 +72,18 @@
           </div>
 
           <!-- Chat View Section -->
-          <div v-if="selectedUser" class="flex-1 overflow-y-auto">
+          <div v-if="currentView === 'same-ip' || selectedUser" class="flex-1 overflow-y-auto">
             <ChatView />
           </div>
+
           <div v-else class="flex-1 flex items-center justify-center">
             <p class="text-gray-500 dark:text-gray-400">Chat view goes here...</p>
           </div>
 
           <!-- Input Section -->
           <div class="chatInput mt-4 mb-2">
-            <ChatInput/>
+            <ChatInput :chatType="currentView === 'same-ip' ? 'group' : 'private'"/>
+
           </div>
         </div>
 
@@ -114,7 +116,7 @@
 
 
 <script lang="ts">
-import { defineComponent, ref, computed, onMounted } from 'vue';
+import {defineComponent, ref, computed, onMounted, watch} from 'vue';
 import IconColumn from "@/dashboard/LeftColumn/IconColumn.vue";
 import UserProfilePanel from "@/dashboard/MiddleColumn/Header/UserProfilePanel.vue";
 import AddUserPanel from "@/dashboard/MiddleColumn/Header/AddUserPanel.vue";
@@ -127,9 +129,10 @@ import { useAuthStore } from "@/stores/auth";
 import ChatHeader from "@/dashboard/RightColumn/ChatHeader.vue";
 import ChatInput from "@/dashboard/RightColumn/ChatInput.vue";
 import ChatView from "@/dashboard/RightColumn/ChatView.vue";
-import { useChatStore } from '@/stores/chatStore';
+import { useMessageStore } from '@/stores/message';
 import Header from "@/dashboard/MiddleColumn/Header/Header.vue";
 import ChatFileDisplay from "@/Layouts/file/ChatFileDisplay.vue";
+import Test from "@/dashboard/RightColumn/Test.vue";
 
 
 export default defineComponent({
@@ -140,6 +143,7 @@ export default defineComponent({
     }
   },
   components: {
+    Test,
     Header,
     AddUserPanel,
     UserProfilePanel,
@@ -228,10 +232,28 @@ export default defineComponent({
     // Method to handle user selection from Friends.vue
     const handleSelectUser = (user) => {
       selectedUser.value = user;
-      const chatStore = useChatStore();
-      chatStore.setReceiverId(user.id);
+      const messageStore = useMessageStore();
+      messageStore.setReceiverId(user.id)
+      messageStore.getPrivateConversationId(user.id)
+        .then(() => {
+          messageStore.fetchMessages()
+        })
     };
 
+    watch(
+      () => currentView.value,
+      async (newVal) => {
+        if (newVal === 'same-ip') {
+          const messageStore = useMessageStore();
+          try {
+            await messageStore.getSameIPConversation();
+            await messageStore.fetchMessages();
+          } catch (error) {
+            console.error(error);
+          }
+        }
+      }
+    );
 
     return {
       showUserProfile,

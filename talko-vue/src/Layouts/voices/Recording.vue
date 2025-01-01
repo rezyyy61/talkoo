@@ -247,6 +247,7 @@ export default {
         waveSurferInstance.destroy();
       }
     });
+    console.log(store.getAllVoiceMessages)
 
     return {
       isRecording,
@@ -258,7 +259,7 @@ export default {
       togglePlay,
       latestAudioURL,
       removeRecording,
-      timer, // Expose timer for debugging
+      timer,
     };
   },
 };

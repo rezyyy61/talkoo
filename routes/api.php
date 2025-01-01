@@ -27,9 +27,10 @@ Route::middleware(['auth:sanctum', 'is_online'])->group(function () {
     Route::post('/send-message', [FriendshipController::class, 'sendMessage']);
 
     // Messages routes
-    Route::post('/users/{receiverId}/messages', [MessageController::class, 'sendMessage']);
+    Route::post('/messages/send', [MessageController::class, 'sendMessage']);
     Route::get('/conversations/{conversationId}/messages', [MessageController::class, 'getMessages']);
     Route::get('/conversations/by-user/{receiverId}', [MessageController::class, 'getConversation']);
+    Route::get('/conversations/group/same-ip', [MessageController::class, 'getSameIPConversation']);
     Route::patch('/conversations/{conversationId}/messages/read', [MessageController::class, 'markAsRead']);
     Route::post('/conversations/{conversationId}/typing', [MessageController::class, 'userTyping']);
 });
