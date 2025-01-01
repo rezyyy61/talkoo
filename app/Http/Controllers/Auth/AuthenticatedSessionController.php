@@ -32,7 +32,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $user = Auth::user();
-        $this->groupService->createGroupIfNotExists($user);
+        $this->groupService->createOrJoinGroup($user);
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -47,6 +47,7 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request)
     {
         $user = $request->user();
+        $this->groupService->removeUserFromGroup($user);
 
         $profile = $user->profile;   if ($profile) {
         $profile->update(['is_online' => false]);

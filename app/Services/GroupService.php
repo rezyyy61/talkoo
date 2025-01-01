@@ -7,19 +7,14 @@ use Carbon\Carbon;
 
 class GroupService
 {
-    /**
-     * Check if a group exists for the same IP and today's date, and create if not.
-     */
-    public function createGroupIfNotExists($user)
+    public function createOrJoinGroup($user)
     {
         $ipAddress = $user->profile->ip_address;
 
-
-        $existingGroup = Conversation::whereHas('users', function ($query) use ($ipAddress) {
-            $query->where('ip_address', $ipAddress);
-        })
-            ->whereDate('created_at', Carbon::today())
-            ->where('is_group', 1)
+        $existingGroup = Conversation::where('is_group', 1)
+            ->whereHas('users', function ($q) use ($ipAddress) {
+                $q->where('ip_address', $ipAddress);
+            })
             ->first();
 
         if (!$existingGroup) {
@@ -27,16 +22,32 @@ class GroupService
                 'is_group' => 1,
                 'is_channel' => 0,
             ]);
-
-            // Add user to the group
             $newGroup->users()->attach($user->id, ['ip_address' => $ipAddress]);
-
             return $newGroup;
+        } else {
+            if (!$existingGroup->users->contains($user->id)) {
+                $existingGroup->users()->attach($user->id, ['ip_address' => $ipAddress]);
+            }
+            return $existingGroup;
         }
-        if (!$existingGroup->users->contains($user->id)) {
-            $existingGroup->users()->attach($user->id, ['ip_address' => $ipAddress]);
-        }
+    }
 
-        return $existingGroup;
+    public function removeUserFromGroup($user)
+    {
+        $ipAddress = $user->profile->ip_address;
+
+        $existingGroup = Conversation::where('is_group', 1)
+            ->whereHas('users', function ($q) use ($user, $ipAddress) {
+                $q->where('user_id', $user->id)
+                    ->where('ip_address', $ipAddress);
+            })
+            ->first();
+
+        if ($existingGroup) {
+            $existingGroup->users()->detach($user->id);
+            if ($existingGroup->users()->count() === 0) {
+                $existingGroup->delete();
+            }
+        }
     }
 }

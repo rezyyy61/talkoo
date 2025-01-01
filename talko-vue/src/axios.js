@@ -1,6 +1,6 @@
 // src/axios.js
 import axios from 'axios';
-import router from './router'; // Ensure router is properly imported
+import router from './router';
 
 const axiosInstance = axios.create({
   baseURL: 'http://127.0.0.1:8080/api',

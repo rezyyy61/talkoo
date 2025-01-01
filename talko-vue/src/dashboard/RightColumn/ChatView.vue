@@ -5,7 +5,7 @@
     @scroll="handleScroll"
   >
     <!-- Loading State -->
-    <div v-if="chatStore.isLoading" class="flex justify-center items-center">
+    <div v-if="messageStore.isLoading" class="flex justify-center items-center">
       <!-- Spinner SVG -->
       <svg
         class="animate-spin h-8 w-8 text-blue-500"
@@ -30,14 +30,14 @@
     </div>
 
     <!-- Error State -->
-    <div v-else-if="chatStore.hasError" class="text-red-500 text-center">
-      {{ chatStore.error }}
+    <div v-else-if="messageStore.hasError" class="text-red-500 text-center">
+      {{ messageStore.error }}
     </div>
 
     <!-- Messages List -->
-    <div v-else-if="chatStore.messages.length > 0" class="flex flex-col space-y-2 ">
+    <div v-else-if="messageStore.messages.length > 0" class="flex flex-col space-y-2">
       <ChatBubble
-        v-for="message in chatStore.messages"
+        v-for="message in messageStore.messages"
         :key="message.id"
         :message="message"
         :currentUserId="currentUserId"
@@ -49,9 +49,13 @@
       <p>No messages yet. Start the conversation!</p>
     </div>
 
-    <div v-if="chatStore.typingUsers.includes(chatStore.receiverId)" class="typing-indicator flex items-center">
+    <!-- Typing Indicator -->
+    <div
+      v-if="messageStore.typingUsers.includes(messageStore.receiverId)"
+      class="typing-indicator flex items-center"
+    >
       <img
-        :src=" defaultAvatar"
+        :src="defaultAvatar"
         alt="Receiver Avatar"
         class="w-10 h-10 rounded-full mr-2"
       />
@@ -82,56 +86,54 @@
 
 <script lang="ts">
 import { defineComponent, computed, watch, ref, onMounted, nextTick } from 'vue';
-import { useChatStore } from '@/stores/chatStore';
+import { useMessageStore } from '@/stores/message';
 import { useAuthStore } from '@/stores/auth';
 import ChatBubble from "@/dashboard/RightColumn/ChatBubble.vue";
 
 export default defineComponent({
   name: 'ChatView',
-  components: {
-    ChatBubble,
-  },
+  components: { ChatBubble },
   setup() {
-    const chatStore = useChatStore();
+    const messageStore = useMessageStore();
     const authStore = useAuthStore();
 
-    const currentUserId = computed(() => authStore.user.id);
-    const messagesContainer = ref(null);
+    const currentUserId = computed(() => authStore.user?.id || null);
+
+    const messagesContainer = ref<HTMLElement | null>(null);
     const showNewMessageIndicator = ref(false);
     const defaultAvatar = 'https://readymadeui.com/team-6.webp';
+
     let isUserAtBottom = true;
 
-    // Scroll to the bottom of the messages container
     const scrollToBottom = () => {
       if (messagesContainer.value) {
         messagesContainer.value.scrollTo({
           top: messagesContainer.value.scrollHeight,
-          behavior: 'smooth',
+          behavior: 'smooth'
         });
         showNewMessageIndicator.value = false;
         isUserAtBottom = true;
       }
     };
 
-    // Handle scroll event to determine if user is at the bottom
     const handleScroll = () => {
-      if (messagesContainer.value) {
-        const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
-        const threshold = 50; // px
+      if (!messagesContainer.value) return;
 
-        if (scrollHeight - scrollTop - clientHeight < threshold) {
-          isUserAtBottom = true;
-          showNewMessageIndicator.value = false;
-          chatStore.markMessagesAsRead(chatStore.conversationId);
-        } else {
-          isUserAtBottom = false;
-        }
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+      const threshold = 50;
+
+      if (scrollHeight - scrollTop - clientHeight < threshold) {
+        isUserAtBottom = true;
+        showNewMessageIndicator.value = false;
+
+        messageStore.markAsRead();
+      } else {
+        isUserAtBottom = false;
       }
     };
 
-    // Watch for changes in messages and scroll accordingly
     watch(
-      () => chatStore.messages,
+      () => messageStore.messages,
       async (newMessages, oldMessages) => {
         await nextTick();
         if (isUserAtBottom) {
@@ -142,12 +144,23 @@ export default defineComponent({
       }
     );
 
-    // Watch for changes in receiverId to fetch messages and scroll
     watch(
-      () => chatStore.receiverId,
-      async (newReceiverId) => {
+      () => messageStore.receiverId,
+      async (newReceiverId, oldReceiverId) => {
         if (newReceiverId) {
-          await chatStore.setReceiverId(newReceiverId);
+          messageStore.setReceiverId(newReceiverId);
+
+          await nextTick();
+          scrollToBottom();
+        }
+      },
+      { immediate: true }
+    );
+    watch(
+      () => messageStore.conversationId,
+      async (newConversationId) => {
+        if (newConversationId) {
+          messageStore.setConversationId(newConversationId)
           await nextTick();
           scrollToBottom();
         }
@@ -155,22 +168,22 @@ export default defineComponent({
       { immediate: true }
     );
 
-    // Optionally, scroll to bottom on component mount if there are messages
+
     onMounted(async () => {
-      if (chatStore.messages.length > 0) {
+      if (messageStore.messages.length > 0) {
         await nextTick();
         scrollToBottom();
       }
     });
 
     return {
-      chatStore,
+      messageStore,
       currentUserId,
       messagesContainer,
       showNewMessageIndicator,
+      defaultAvatar,
       scrollToBottom,
       handleScroll,
-      defaultAvatar,
     };
   },
 });
@@ -178,7 +191,7 @@ export default defineComponent({
 
 <style scoped>
 .chatView {
-  position: relative; /* To position the indicator absolutely within the container */
+  position: relative;
 }
 
 /* Typing Indicator */
@@ -188,7 +201,6 @@ export default defineComponent({
   justify-content: start;
   align-items: center;
 }
-
 .dot {
   width: 8px;
   height: 8px;
@@ -196,19 +208,15 @@ export default defineComponent({
   border-radius: 50%;
   animation: blink 1.4s infinite;
 }
-
 .dot:nth-child(1) {
   animation-delay: 0s;
 }
-
 .dot:nth-child(2) {
   animation-delay: 0.2s;
 }
-
 .dot:nth-child(3) {
   animation-delay: 0.4s;
 }
-
 @keyframes blink {
   0%, 80%, 100% {
     opacity: 0;
@@ -221,10 +229,10 @@ export default defineComponent({
 /* New Message Indicator */
 .new-message-indicator {
   position: absolute;
-  bottom: 70px; /* Adjust based on your ChatInput height */
+  bottom: 70px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: #2563eb; /* Tailwind's blue-600 */
+  background-color: #2563eb;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 9999px;
@@ -233,12 +241,10 @@ export default defineComponent({
   cursor: pointer;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
 .new-message-indicator svg {
   margin-right: 0.5rem;
 }
-
 .new-message-indicator:hover {
-  background-color: #1d4ed8; /* Tailwind's blue-700 */
+  background-color: #1d4ed8;
 }
 </style>

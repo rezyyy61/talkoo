@@ -3,116 +3,65 @@
 namespace App\Http\Controllers;
 
 use App\Enums\MessageStatus;
-use App\Enums\MessageType;
 use App\Events\MessageRead;
-use App\Events\MessageSent;
 use App\Events\UserTyping;
 use App\Models\Conversation;
-use App\Models\File;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\GroupService;
+use App\Services\MessageService;
 use Illuminate\Http\Request;
-
 
 class MessageController extends Controller
 {
-    public function sendMessage(Request $request, $receiverId)
+    protected $messageService;
+
+    public function __construct(MessageService $messageService)
+    {
+        $this->messageService = $messageService;
+    }
+
+    public function sendMessage(Request $request)
     {
         $request->validate([
-            'content' => 'nullable|string|max:1000',
-            'file'    => 'nullable|file|max:20480',
-            'audio'   => 'nullable|mimes:webm,mp3,wav|max:10240',
+            'type'       => 'required|in:private,group,channel',
+            'receiver_id'=> 'nullable|exists:users,id',
+            'conversation_id' => 'nullable|exists:conversations,id',
+            'content'    => 'nullable|string|max:1000',
+            'file'       => 'nullable|file|max:200480',
+            'audio'      => 'nullable|mimes:webm,mp3,wav|max:100240',
         ]);
 
         $sender = auth()->user();
-        $receiver = User::findOrFail($receiverId);
+        $type   = $request->input('type');
 
-        $conversation = Conversation::where('is_group', false)
-            ->where('is_channel', false)
-            ->whereHas('users', function ($q) use ($sender, $receiver) {
-                $q->where('user_id', $sender->id)->orWhere('user_id', $receiver->id);
-            }, '=', 2)
-            ->first();
+        switch ($type) {
+            case 'private':
+                $receiverId   = $request->input('receiver_id');
+                $conversation = $this->messageService->findOrCreatePrivateConversation($sender->id, $receiverId);
+                break;
 
-        if (!$conversation) {
-            $conversation = Conversation::create(['is_group' => false, 'is_channel' => false]);
-            $conversation->users()->attach([$sender->id, $receiver->id], ['joined_at' => now()]);
+            case 'group':
+                $conversationId = $request->input('conversation_id');
+                $conversation   = $this->messageService->getGroupConversation($conversationId);
+                break;
+
+            case 'channel':
+                $conversationId = $request->input('conversation_id');
+                $conversation   = $this->messageService->getChannelConversation($conversationId);
+                break;
         }
 
         if ($request->hasFile('file')) {
-            $message = $this->sendFileMessage($request, $conversation);
+            $message = $this->messageService->sendFileMessage($conversation, $sender, $request->file('file'));
             return response()->json(['success' => true, 'data' => $message], 201);
-        }
-
-        if ($request->hasFile('audio')) {
-            $audioPath = $request->file('audio')->store('voice_messages', 'public');
-            $message = Message::create([
-                'conversation_id' => $conversation->id,
-                'sender_id'       => $sender->id,
-                'message_type'    => MessageType::AUDIO,
-                'content'         => asset('storage/' . $audioPath),
-                'status'          => MessageStatus::SENT,
-            ]);
-            broadcast(new MessageSent($message));
+        } elseif ($request->hasFile('audio')) {
+            $message = $this->messageService->sendAudioMessage($conversation, $sender, $request->file('audio'));
             return response()->json(['success' => true, 'data' => $message], 201);
-        }
-
-        $message = Message::create([
-            'conversation_id' => $conversation->id,
-            'sender_id'       => $sender->id,
-            'message_type'    => MessageType::TEXT,
-            'content'         => $request->input('content'),
-            'status'          => MessageStatus::SENT,
-        ]);
-
-        broadcast(new MessageSent($message));
-        return response()->json(['success' => true, 'data' => $message], 201);
-    }
-
-    private function sendFileMessage(Request $request, Conversation $conversation)
-    {
-        $uploadedFile = $request->file('file');
-        $extension    = strtolower($uploadedFile->getClientOriginalExtension());
-        $storedPath   = $uploadedFile->store('file_messages', 'public');
-        $originalName = $uploadedFile->getClientOriginalName();
-        $size         = $uploadedFile->getSize();
-
-        $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp'];
-        $videoExts = ['mp4', 'mov', 'avi', 'mkv'];
-        $pdfExts   = ['pdf'];
-
-        if (in_array($extension, $imageExts)) {
-            $messageType = MessageType::IMAGE;
-            $fileType    = 'image';
-        } elseif (in_array($extension, $videoExts)) {
-            $messageType = MessageType::VIDEO;
-            $fileType    = 'video';
-        } elseif (in_array($extension, $pdfExts)) {
-            $messageType = MessageType::PDF;
-            $fileType    = 'pdf';
         } else {
-            $messageType = MessageType::FILE;
-            $fileType    = 'other';
+            $message = $this->messageService->sendTextMessage($conversation, $sender, $request->input('content'));
+            return response()->json(['success' => true, 'data' => $message], 201);
         }
-
-        $message = Message::create([
-            'conversation_id' => $conversation->id,
-            'sender_id'       => auth()->id(),
-            'message_type'    => $messageType,
-            'content'         => null,
-            'status'          => MessageStatus::SENT,
-        ]);
-
-        File::create([
-            'message_id' => $message->id,
-            'file_path'  => 'storage/' . $storedPath,
-            'file_name'  => $originalName,
-            'file_type'  => $fileType,
-            'file_size'  => $size,
-        ]);
-
-        broadcast(new MessageSent($message));
-        return $message;
     }
 
     public function getConversation(Request $request, $receiverId)
@@ -120,25 +69,14 @@ class MessageController extends Controller
         $sender = auth()->user();
         $receiver = User::findOrFail($receiverId);
 
-        // Fetch existing conversation between sender and receiver
-        $conversation = Conversation::where('is_group', false)
-            ->whereHas('users', function ($query) use ($sender, $receiver) {
-                $query->where('user_id', $sender->id)
-                    ->orWhere('user_id', $receiver->id);
-            }, '=', 2)
-            ->first();
-
-        // If no conversation exists, create one
-        if (!$conversation) {
-            $conversation = Conversation::create(['is_group' => false]);
-            $conversation->users()->attach([$sender->id, $receiver->id], ['joined_at' => now()]);
-        }
+        $conversation = $this->messageService->findOrCreatePrivateConversation($sender->id, $receiver->id);
 
         return response()->json([
-            'success' => true,
-            'conversation_id' => $conversation->id,
+            'success'          => true,
+            'conversation_id'  => $conversation->id,
         ], 200);
     }
+
     public function getMessages($conversationId)
     {
         $user = auth()->user();
@@ -194,4 +132,13 @@ class MessageController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function getSameIPConversation(Request $request, GroupService $groupService)
+    {
+        $user = $request->user();
+        $conversation = $groupService->createOrJoinGroup($user);
+
+        return response()->json([
+            'conversation_id' => $conversation->id,
+        ], 200);
+    }
 }

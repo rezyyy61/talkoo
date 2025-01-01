@@ -1,4 +1,3 @@
-<!-- src/dashboard/RightColumn/ChatInput.vue -->
 <template>
   <div class="chatInput p-4 bg-white mx-6 rounded-2xl flex items-center space-x-2 relative">
     <div class="relative group">
@@ -20,15 +19,14 @@
           <path d="M14 7l5 5" />
         </svg>
       </button>
+
       <transition name="fade">
         <div
           v-if="showFilePreview && selectedFile"
-          class="absolute bottom-full left-0 mb-2  bg-white rounded-lg shadow-lg p-2 z-10"
+          class="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg p-2 z-10"
         >
-          <!-- کامپوننت نمایش فایل -->
           <FileDisplay :file="selectedFile" />
 
-          <!-- دکمه بستن اگر بخواهید -->
           <button
             class="mt-2 text-sm text-red-600 hover:underline"
             @click="removeSelectedFile"
@@ -114,9 +112,8 @@
 
 <script>
 import { ref, computed, nextTick } from 'vue';
-import { useChatStore } from "@/stores/chatStore.js";
+import { useMessageStore } from "@/stores/message.js";
 import { useVoiceMessagesStore } from '@/stores/voiceMessages';
-import axiosInstance from "@/axios.js";
 import VoiceRecorder from "@/Layouts/voices/VoiceRecorder.vue";
 import Recording from "@/Layouts/voices/Recording.vue";
 import Emoji from "@/Layouts/emoji/Emoji.vue";
@@ -125,23 +122,27 @@ import FileDisplay from "@/Layouts/file/FileDisplay.vue";
 export default {
   name: 'ChatInput',
   components: { VoiceRecorder, Recording, Emoji, FileDisplay },
-
-  setup() {
-    const chatStore = useChatStore();
+  props: {
+    chatType: {
+      type: String,
+      required: true,
+    }
+  },
+  setup(props) {
+    const messageStore = useMessageStore();
     const voiceStore = useVoiceMessagesStore();
-
     const messageInput = ref(null);
     const messageContent = ref('');
     const fileInput = ref(null);
     const selectedFile = ref(null);
     const showFilePreview = ref(false);
-
     const isSending = ref(false);
+
     const isRecording = computed(() => voiceStore.isRecording);
     const latestAudioURL = computed(() => voiceStore.latestVoiceMessage?.audioURL || null);
     const recordedBlob = computed(() => voiceStore.latestVoiceMessage?.audioBlob || null);
-
-    const receiverId = computed(() => chatStore.receiverId);
+    const receiverId = computed(() => messageStore.receiverId);
+    const conversationId = computed(() => messageStore.conversationId);
 
     const triggerFileInput = () => {
       fileInput.value.click();
@@ -169,7 +170,8 @@ export default {
 
     const submitMessage = async () => {
       if (
-        !receiverId.value ||
+        !receiverId.value &&
+        !conversationId.value &&
         (messageContent.value.trim() === '' && !selectedFile.value && !recordedBlob.value)
       ) {
         return;
@@ -177,28 +179,19 @@ export default {
 
       isSending.value = true;
       try {
-        const formData = new FormData();
+        const payload = {
+          type: props.chatType,
+          content: messageContent.value.trim(),
+          file: selectedFile.value || null,
+          audio: recordedBlob.value || null,
+        };
 
-        if (selectedFile.value) {
-          formData.append('file', selectedFile.value);
-        }
-        if (recordedBlob.value) {
-          formData.append('audio', recordedBlob.value, `voice_${voiceStore.latestVoiceMessage.id}.webm`);
-        }
-        if (messageContent.value.trim()) {
-          formData.append('content', messageContent.value.trim());
-        }
+        await messageStore.sendMessage(payload);
 
-        const response = await axiosInstance.post(`/users/${receiverId.value}/messages`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        messageContent.value = '';
+        removeAudio();
+        removeSelectedFile();
 
-        if (response.status === 201) {
-          messageContent.value = '';
-          selectedFile.value = null;
-          removeAudio();
-          removeSelectedFile();
-        }
       } catch (error) {
         console.error('Error sending message:', error);
       } finally {
@@ -216,22 +209,18 @@ export default {
     };
 
     const startTyping = async () => {
-      if (chatStore.conversationId) {
-        try {
-          await axiosInstance.post(`/conversations/${chatStore.conversationId}/typing`, { is_typing: true });
-        } catch (error) {
-          console.error('Error sending typing status:', error);
-        }
+      try {
+        await messageStore.userTyping(true);
+      } catch (error) {
+        console.error('Error sending typing status:', error);
       }
     };
 
     const stopTyping = async () => {
-      if (chatStore.conversationId) {
-        try {
-          await axiosInstance.post(`/conversations/${chatStore.conversationId}/typing`, { is_typing: false });
-        } catch (error) {
-          console.error('Error sending typing status:', error);
-        }
+      try {
+        await messageStore.userTyping(false);
+      } catch (error) {
+        console.error('Error sending typing status:', error);
       }
     };
 
@@ -254,7 +243,7 @@ export default {
       return (
         !isRecording.value &&
         (messageContent.value.trim() !== '' || recordedBlob.value || selectedFile.value) &&
-        receiverId.value &&
+        (receiverId.value || conversationId.value) &&
         !isSending.value
       );
     });
@@ -269,6 +258,7 @@ export default {
       selectedFile,
       messageInput,
       receiverId,
+      conversationId,
       submitMessage,
       handleFileUpload,
       triggerFileInput,
@@ -282,7 +272,6 @@ export default {
   },
 };
 </script>
-
 
 <style scoped>
 button svg {
@@ -298,36 +287,12 @@ button:hover svg {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-
 @keyframes spin {
   100% {
     transform: rotate(360deg);
   }
 }
 
-/* Ensure the waveform container has proper height */
-.waveform-container {
-  position: relative;
-  width: 100%;
-  height: 80px; /* Adjust as needed */
-}
-
-/* Play Button Styling */
-.play-button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 50%;
-  padding: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.play-button:hover {
-  background: rgba(255, 255, 255, 1);
-}
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.2s;
 }
