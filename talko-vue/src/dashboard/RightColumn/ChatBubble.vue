@@ -87,7 +87,7 @@ export default {
     });
 
     const bubbleBackground = computed(() => {
-      return isSender.value ? 'bg-blue-600' : 'bg-gray-500';
+      return isSender.value ? 'bg-blue-500' : 'bg-gray-500';
     });
 
     const formattedTime = computed(() => {
@@ -158,7 +158,9 @@ export default {
 }
 
 .read-icon {
-  color: #48bb78; /* Green for read */
+  color: #03f88a;
+  width: 24px;
+  height: 24px;
 }
 
 .sent-icon {

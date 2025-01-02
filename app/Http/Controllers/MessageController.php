@@ -127,7 +127,7 @@ class MessageController extends Controller
         $user = auth()->user();
         $isTyping = $request->input('is_typing', false);
 
-        broadcast(new UserTyping($conversationId, $user->id, $isTyping))->toOthers();
+        broadcast(new UserTyping($conversationId, $user->id, $isTyping, $user->name));
 
         return response()->json(['success' => true]);
     }

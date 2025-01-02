@@ -15,12 +15,14 @@ class UserTyping implements ShouldBroadcastNow
     public $conversationId;
     public $userId;
     public $isTyping;
+    public $userName;
 
-    public function __construct($conversationId, $userId, $isTyping)
+    public function __construct($conversationId, $userId, $isTyping, $userName)
     {
         $this->conversationId = $conversationId;
         $this->userId = $userId;
         $this->isTyping = $isTyping;
+        $this->userName = $userName;
     }
 
     public function broadcastOn()
@@ -33,6 +35,7 @@ class UserTyping implements ShouldBroadcastNow
         return [
             'user_id' => $this->userId,
             'is_typing' => $this->isTyping,
+            'user_name' => $this->userName,
         ];
     }
 }

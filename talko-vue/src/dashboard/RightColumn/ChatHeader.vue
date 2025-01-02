@@ -10,7 +10,7 @@
       />
       <div
         v-else
-        :style="{ backgroundColor: user.profile.avatar || defaultAvatar }"
+        :style="{ backgroundColor: user.profile.avatar  }"
         class="w-20 h-20 rounded-full flex items-center justify-center text-gray-600 text-xl font-bold border-2 border-gray-300 hover:border-gray-500"
       >
         {{ getInitials(user.name) }}
@@ -29,17 +29,29 @@
     <!-- Details Section -->
     <div class="ml-4 flex-1">
       <h2 class="text-xl font-bold text-gray-800 dark:text-white">{{ user.name }}</h2>
-      <p class="text-sm text-green-600 dark:text-green-400" v-if="user.profile?.is_online">
+
+      <!-- Typing Indicator -->
+      <p v-if="typingUsers.length > 0" class="text-sm text-gray-600 dark:text-white">
+        <span v-for="(typingUser, index) in typingUsers" :key="typingUser.id">
+          {{ typingUser.name }}<span v-if="index < typingUsers.length - 1">, </span>
+        </span>
+        <span v-if="typingUsers.length === 1"> is</span>
+        <span v-else>are</span> typing...
       </p>
-      <p class="text-sm text-gray-600 dark:text-white" v-else>
-      {{ getLastActivity(user.profile?.last_activity) }}
+
+      <p v-else-if="user.profile?.is_online" class="text-sm text-green-600 dark:text-green-400">
+        Online
+      </p>
+      <p v-else class="text-sm text-gray-600 dark:text-white">
+        {{ getLastActivity(user.profile?.last_activity) }}
       </p>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue';
+import {defineComponent, computed, PropType} from 'vue';
+import { useMessageStore } from '@/stores/message.js';
 
 export default defineComponent({
   name: 'ChatHeader',
@@ -63,9 +75,13 @@ export default defineComponent({
       required: true,
     },
   },
-  data() {
+  setup(props) {
+    const messageStore = useMessageStore();
+
+    const typingUsers = computed(() => messageStore.typingUsers);
+
     return {
-      defaultAvatar: '#f3f4f6',
+      typingUsers,
     };
   },
   methods: {
@@ -134,5 +150,9 @@ export default defineComponent({
 
 .ml-4 {
   margin-left: 1rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
 }
 </style>

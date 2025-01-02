@@ -1,6 +1,7 @@
 // src/stores/message.js
 import { defineStore } from 'pinia';
 import axiosInstance from '@/axios';
+import { useAuthStore } from '@/stores/auth';
 
 export const useMessageStore = defineStore('message', {
   state: () => ({
@@ -10,7 +11,8 @@ export const useMessageStore = defineStore('message', {
     isLoading: false,
     hasError: false,
     error: null,
-    typingUsers: [],
+    isListening: false,
+    typingUsers: []
   }),
 
   actions: {
@@ -51,6 +53,7 @@ export const useMessageStore = defineStore('message', {
         console.warn('No conversationId set');
         return;
       }
+      this.listenForNewMessages();
       try {
         const response = await axiosInstance.get(`/conversations/${this.conversationId}/messages`);
         this.messages = response.data.data;
@@ -88,8 +91,6 @@ export const useMessageStore = defineStore('message', {
           maxBodyLength: Infinity,
           maxContentLength: Infinity,
         });
-        console.log(response.data)
-        this.messages.push(response.data.data);
       } catch (error) {
         console.error(error);
       }
@@ -107,21 +108,101 @@ export const useMessageStore = defineStore('message', {
       }
     },
 
-    async userTyping(isTyping) {
+    listenForNewMessages() {
       if (!this.conversationId) {
-        console.warn('No conversationId set for userTyping');
+        console.error('Cannot listen for messages without a conversation ID.');
         return;
       }
+
+      if (!window.Echo) {
+        console.error('Laravel Echo is not initialized.');
+        return;
+      }
+
+      if (this.isListening) {
+        return;
+      }
+
+      const channelName = `conversation.${this.conversationId}`;
+
+      // Check if channel is already subscribed
+      if (window.Echo.connector.channels[`private-${channelName}`]) {
+        console.log(`Leaving existing channel: private-${channelName}`);
+        window.Echo.leave(channelName);
+      }
+
+      window.Echo.private(channelName)
+        .listen('MessageSent', (newMessage) => {
+          console.log(newMessage)
+          const exists = this.messages.some(msg => msg.id === newMessage.id);
+          if (!exists) {
+            this.messages.push(newMessage);
+          }
+        })
+        .listen('MessageRead', (data) => {
+          const messageIds = data.message_Ids;
+          if (!messageIds || !Array.isArray(messageIds)) {
+            console.error('message_ids is not defined or not an array');
+            return;
+          }
+          this.messages = this.messages.map(msg => {
+            if (messageIds.includes(msg.id)) {
+              return { ...msg, status: 'read' };
+            }
+            return msg;
+          });
+        })
+        .listen('UserTyping', (data) => {
+          this.handleUserTyping(data)
+        })
+
+      this.isListening = true;
+    },
+    async userTyping(isTyping) {
+
+      if (!this.conversationId) return;
+
       try {
-        await axiosInstance.post(`/conversations/${this.conversationId}/typing`, { is_typing: isTyping });
-        if (isTyping) {
-
-        } else {
-
-        }
+        await axiosInstance.post(`/conversations/${this.conversationId}/typing`, {
+          is_typing: isTyping,
+        });
       } catch (error) {
-        console.error(error);
+        console.error('Error sending typing status:', error);
       }
     },
+
+    handleUserTyping(data) {
+      const authStore = useAuthStore();
+      const currentUserId = authStore.user ? authStore.user.id : null;
+
+      const { user_id, is_typing, user_name } = data;
+
+      if (currentUserId && user_id === currentUserId) {
+        return;
+      }
+
+      if (is_typing) {
+        if (!this.typingUsers.some(user => user.id === user_id)) {
+          this.typingUsers.push({ id: user_id, name: user_name, timeout: null });
+        }
+
+        const user = this.typingUsers.find(user => user.id === user_id);
+        if (user) {
+          if (user.timeout) {
+            clearTimeout(user.timeout);
+          }
+          user.timeout = setTimeout(() => {
+            this.removeTypingUser(user_id);
+          }, 3000);
+        }
+      } else {
+
+        this.removeTypingUser(user_id);
+      }
+    },
+
+    removeTypingUser(userId) {
+      this.typingUsers = this.typingUsers.filter(user => user.id !== userId);
+    }
   }
 });
