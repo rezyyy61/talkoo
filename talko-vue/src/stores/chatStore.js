@@ -87,55 +87,7 @@ export const useChatStore = defineStore('chat', {
     },
 
 
-    listenForNewMessages() {
-      if (!this.conversationId) {
-        console.error('Cannot listen for messages without a conversation ID.');
-        return;
-      }
 
-      if (!window.Echo) {
-        console.error('Laravel Echo is not initialized.');
-        return;
-      }
-
-      if (this.isListening) {
-        return;
-      }
-
-      const channelName = `conversation.${this.conversationId}`;
-
-      // Check if channel is already subscribed
-      if (window.Echo.connector.channels[`private-${channelName}`]) {
-        console.log(`Leaving existing channel: private-${channelName}`);
-        window.Echo.leave(channelName);
-      }
-
-      window.Echo.private(channelName)
-        .listen('MessageSent', (newMessage) => {
-          const exists = this.messages.some(msg => msg.id === newMessage.id);
-          if (!exists) {
-            this.messages.push(newMessage);
-          }
-        })
-        .listen('MessageRead', (data) => {
-          const messageIds = data.message_Ids;
-          if (!messageIds || !Array.isArray(messageIds)) {
-            console.error('message_ids is not defined or not an array');
-            return;
-          }
-          this.messages = this.messages.map(msg => {
-            if (messageIds.includes(msg.id)) {
-              return { ...msg, status: 'read' };
-            }
-            return msg;
-          });
-        })
-        .listen('UserTyping', (data) => {
-          this.handleUserTyping(data)
-        })
-
-      this.isListening = true;
-    }
   },
 
   getters: {
