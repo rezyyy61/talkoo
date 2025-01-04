@@ -55,7 +55,6 @@
       class="typing-indicator flex items-center"
     >
       <img
-        :src="defaultAvatar"
         alt="Receiver Avatar"
         class="w-10 h-10 rounded-full mr-2"
       />
@@ -101,7 +100,6 @@ export default defineComponent({
 
     const messagesContainer = ref<HTMLElement | null>(null);
     const showNewMessageIndicator = ref(false);
-    const defaultAvatar = 'https://readymadeui.com/team-6.webp';
 
     let isUserAtBottom = true;
 
@@ -181,7 +179,6 @@ export default defineComponent({
       currentUserId,
       messagesContainer,
       showNewMessageIndicator,
-      defaultAvatar,
       scrollToBottom,
       handleScroll,
     };

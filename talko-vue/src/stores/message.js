@@ -57,6 +57,7 @@ export const useMessageStore = defineStore('message', {
       try {
         const response = await axiosInstance.get(`/conversations/${this.conversationId}/messages`);
         this.messages = response.data.data;
+        console.log(this.messages)
       } catch (error) {
         console.error(error);
       }
@@ -133,7 +134,6 @@ export const useMessageStore = defineStore('message', {
 
       window.Echo.private(channelName)
         .listen('MessageSent', (newMessage) => {
-          console.log(newMessage)
           const exists = this.messages.some(msg => msg.id === newMessage.id);
           if (!exists) {
             this.messages.push(newMessage);

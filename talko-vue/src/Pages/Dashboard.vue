@@ -1,7 +1,6 @@
-<!-- DashboardComponent.vue -->
 <template>
   <div class="bg-[#434552] py-6 px-14 h-screen flex overflow-hidden">
-    <!-- Left column (fixed width: 110px) -->
+    <!-- Left Column (Fixed Width: 110px) -->
     <div
       class="bg-gray-600 flex flex-col items-center rounded-l-[2rem]"
       style="width: 110px; height: 100%;"
@@ -15,16 +14,16 @@
       </div>
     </div>
 
-    <!-- Main content, Right Column, and Add User Panel -->
+    <!-- Main Content, Right Column, and Add User Panel -->
     <div class="flex-1 flex flex-col glass-effect relative overflow-hidden">
-      <!-- ChatHeader -->
+      <!-- Header -->
       <div class="h-[90px]">
         <Header @view-profile="toggleUserProfile" @add-user="toggleAddUserPanel" />
       </div>
 
       <!-- Content Area -->
-      <div class="flex flex-1 transition-all duration-300 overflow-hidden mx-6">
-        <!-- Middle column -->
+      <div class="flex flex-1 transition-all duration-300 overflow-hidden ">
+        <!-- Middle Column -->
         <div class="w-[450px] sidebar mx-3 flex flex-col">
           <div class="bg-[#8a949d] p-3 h-[120px] title flex items-center">
             <span class="circle-indicator"></span>
@@ -34,18 +33,8 @@
           </div>
 
           <div class="sidebar-content bg-[#ffffff] dark:bg-gray-900 h-full flex flex-col overflow-y-auto">
-            <!-- Conditionally render based on currentView -->
+            <!-- Conditionally Render Based on currentView -->
             <div v-if="currentView === 'private'">
-              <PrivateChat />
-            </div>
-            <div v-else-if="currentView === 'group'">
-              <GroupChat />
-            </div>
-            <div v-else-if="currentView === 'same-ip'">
-              <SameIPChat />
-            </div>
-            <div v-else-if="currentView === 'friends'">
-              <!-- Pass selectedUser as a prop -->
               <Friends
                 @select-user="handleSelectUser"
                 :userId="user.id"
@@ -53,21 +42,31 @@
                 :selectedUser="selectedUser"
               />
             </div>
-            <div v-else>Default Content</div>
+            <div v-else-if="currentView === 'group'">
+              <GroupChat />
+            </div>
+            <div v-else-if="currentView === 'same-ip'">
+              <SameIpChat :userProp="user" @open-profile="toggleUserProfile" />
+            </div>
+            <div v-else>
+              Default Content
+            </div>
           </div>
         </div>
 
-        <!-- Right column -->
-        <div class="bg-[#8a949d] flex-1 flex flex-col mr-3 ml-8">
+        <!-- Right Column -->
+        <div class="bg-[#8a949d] flex-1 flex flex-col mr-2">
           <!-- ChatHeader Section -->
           <div v-if="currentView === 'same-ip'" class="userHeader mb-4">
             <ChatHeader :user="groupHeader" />
           </div>
-          <div v-else-if="selectedUser" class="userHeader mb-4">
-            <ChatHeader :user="selectedUser" />
+          <div
+            v-else-if="selectedUser && selectedUser.id !== user.id"
+            class="userHeader mb-4"
+          >
+            <ChatHeader :user="selectedUser" @open-profile="toggleUserProfile" />
           </div>
           <div v-else class="userHeader mb-4">
-            <!-- Placeholder or default content -->
             <p class="text-white">Select a user to view details.</p>
           </div>
 
@@ -82,90 +81,83 @@
 
           <!-- Input Section -->
           <div class="chatInput mt-4 mb-2">
-            <ChatInput :chatType="currentView === 'same-ip' ? 'group' : 'private'"/>
-
+            <ChatInput :chatType="currentView === 'same-ip' ? 'group' : 'private'" />
           </div>
         </div>
 
-        <!-- User profile  Panel -->
+        <!-- User Profile Panel -->
         <transition name="slide-in">
           <div
             v-if="showUserProfile"
-            class="w-80 bg-white shadow-lg flex-shrink-0 transition-transform duration-300 mx-3"
+            class="w-[450px] bg-white shadow-lg flex-shrink-0 transition-transform duration-300 rounded-xl overflow-y-auto max-h-screen"
           >
-            <!-- User profile Panel Content -->
-            <UserProfilePanel @close-profile="toggleUserProfile" />
+            <UserProfilePanel
+              v-if="showUserProfile"
+              :user="profileUser"
+              @close="toggleUserProfile" />
+
           </div>
         </transition>
+
         <!-- Add User Panel -->
         <transition name="slide-in">
           <div
             v-if="showAddUserPanel"
-            class="w-[400px] bg-white shadow-lg flex-shrink-0 transition-transform duration-300 mx-3 flex flex-col overflow-hidden"
+            class="w-[450px] bg-white shadow-lg flex-shrink-0 transition-transform duration-300 mx-3 flex flex-col overflow-hidden"
           >
-            <!-- Add User Panel Content -->
             <AddUserPanel @close="toggleAddUserPanel" />
           </div>
         </transition>
       </div>
     </div>
+
     <!-- Notifications -->
     <notification />
   </div>
 </template>
 
-
 <script lang="ts">
-import {defineComponent, ref, computed, onMounted, watch} from 'vue';
+import { defineComponent, ref, computed, watch } from 'vue';
 import IconColumn from "@/dashboard/LeftColumn/IconColumn.vue";
 import UserProfilePanel from "@/dashboard/MiddleColumn/Header/UserProfilePanel.vue";
 import AddUserPanel from "@/dashboard/MiddleColumn/Header/AddUserPanel.vue";
 import PrivateChat from "@/dashboard/MiddleColumn/PrivateChat.vue";
 import GroupChat from "@/dashboard/MiddleColumn/GroupChat.vue";
-import SameIPChat from "@/dashboard/MiddleColumn/SameIPChat.vue";
 import Friends from "@/dashboard/MiddleColumn/Friends.vue";
 import Notification from "@/Pages/Notification.vue";
 import { useAuthStore } from "@/stores/auth";
 import ChatHeader from "@/dashboard/RightColumn/ChatHeader.vue";
 import ChatInput from "@/dashboard/RightColumn/ChatInput.vue";
 import ChatView from "@/dashboard/RightColumn/ChatView.vue";
-import { useMessageStore } from '@/stores/message';
 import Header from "@/dashboard/MiddleColumn/Header/Header.vue";
-import ChatFileDisplay from "@/Layouts/file/ChatFileDisplay.vue";
-import Test from "@/dashboard/RightColumn/Test.vue";
-
+import { useMessageStore } from '@/stores/message';
+import SameIpChat from "@/dashboard/MiddleColumn/SameIPChat.vue";
 
 export default defineComponent({
   name: 'DashboardComponent',
-  computed: {
-    ChatFileDisplay() {
-      return ChatFileDisplay
-    }
-  },
   components: {
-    Test,
-    Header,
-    AddUserPanel,
-    UserProfilePanel,
-    ChatHeader,
+    SameIpChat,
     IconColumn,
+    UserProfilePanel,
+    AddUserPanel,
     PrivateChat,
     GroupChat,
-    SameIPChat,
     Friends,
     Notification,
+    ChatHeader,
     ChatInput,
     ChatView,
+    Header,
   },
   setup() {
     const showUserProfile = ref(false);
     const showAddUserPanel = ref(false);
-    const currentView = ref('same-ip');
+    const currentView = ref('private');
     const authStore = useAuthStore();
     const user = computed(() => authStore.user);
-    const selectedUser = ref(null)
+    const selectedUser = ref(null);
+    const profileUser = ref(null);
 
-    // Computed property for dynamic header title
     const viewTitle = computed(() => {
       switch (currentView.value) {
         case 'private':
@@ -181,7 +173,6 @@ export default defineComponent({
       }
     });
 
-    // Computed property for dynamic header icon
     const headerIcon = computed(() => {
       switch (currentView.value) {
         case 'private':
@@ -211,34 +202,41 @@ export default defineComponent({
       return selectedUser.value;
     });
 
-    const toggleUserProfile = () => {
-      if (!showUserProfile.value) {
+    const toggleUserProfile = (user: any = null) => {
+      if (user) {
+        if (profileUser.value && profileUser.value.id === user.id && showUserProfile.value) {
+          showUserProfile.value = false;
+          profileUser.value = null;
+          return;
+        }
+        profileUser.value = user;
         showUserProfile.value = true;
         showAddUserPanel.value = false;
       } else {
         showUserProfile.value = false;
+        profileUser.value = null;
       }
     };
 
     const toggleAddUserPanel = () => {
-      if (!showAddUserPanel.value) {
-        showAddUserPanel.value = true;
+      showAddUserPanel.value = !showAddUserPanel.value;
+      if (showAddUserPanel.value) {
         showUserProfile.value = false;
-      } else {
-        showAddUserPanel.value = false;
       }
     };
 
-    // Method to handle user selection from Friends.vue
-    const handleSelectUser = (user) => {
-      selectedUser.value = user;
-      const messageStore = useMessageStore();
-      messageStore.setReceiverId(user.id)
-      messageStore.getPrivateConversationId(user.id)
-        .then(() => {
-          messageStore.fetchMessages()
-        })
+    const handleSelectUser = (user: any) => {
+      if (user.id !== authStore.user.id) {
+        selectedUser.value = user;
+        const messageStore = useMessageStore();
+        messageStore.setReceiverId(user.id);
+        messageStore.getPrivateConversationId(user.id)
+          .then(() => {
+            messageStore.fetchMessages();
+          });
+      }
     };
+
 
     watch(
       () => currentView.value,
@@ -266,6 +264,7 @@ export default defineComponent({
       headerIcon,
       user,
       selectedUser,
+      profileUser,
       handleSelectUser,
     };
   },
@@ -275,6 +274,7 @@ export default defineComponent({
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Serif+Text:ital@1&family=PT+Serif+Caption:ital@0;1&display=swap');
+
 .middle-header {
   font-family: 'Montserrat', sans-serif;
 }
@@ -312,6 +312,7 @@ export default defineComponent({
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
 }
+
 .title h2 {
   font-family: "DM Serif Text", serif;
   font-weight: 400;

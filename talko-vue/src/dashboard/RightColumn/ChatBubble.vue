@@ -1,22 +1,33 @@
 <!-- src/dashboard/RightColumn/ChatBubble.vue -->
 <template>
   <div :class="bubbleClasses">
-    <img
-      v-if="!isSender"
-      :src="message.sender.avatar || defaultAvatar"
-      alt="Receiver Avatar"
-      class="avatar"
-    />
-    <div :class="[bubbleBackground, 'bubble-content']">
-      <div v-if="message.message_type === 'text'" class="text-content">
+    <!-- Conditional rendering for the avatar -->
+    <template v-if="!isSender">
+      <img
+        v-if="message.sender.profile.avatarImage"
+        :src="`/storage/${message.sender.profile.avatarImage}`"
+        alt="Receiver Avatar"
+        class="w-10 h-10 rounded-full shadow-md border-2 border-white mx-3"
+      />
+      <div
+        v-else
+        :style="{ backgroundColor: message.sender.profile.avatarColor || '#fffff' }"
+        class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white mx-3 shadow-md"
+      >
+        {{ getInitials(message.sender.name) }}
+      </div>
+    </template>
+
+    <div :class="[bubbleBackground, 'relative max-w-xl p-3 rounded-2xl shadow-md flex flex-col']">
+      <div v-if="message.message_type === 'text'" class="text-sm text-white">
         {{ message.content }}
       </div>
-      <div v-else-if="message.message_type === 'audio'" class="audio-content">
+      <div v-else-if="message.message_type === 'audio'" class="w-full">
         <AudioWaveform :audioUrl="message.content" />
       </div>
 
       <div
-        v-else-if="['file','image','video','pdf'].includes(message.message_type)"
+        v-else-if="['file', 'image', 'video', 'pdf'].includes(message.message_type)"
         class="file-content"
       >
         <ChatFileDisplay
@@ -26,28 +37,33 @@
         />
       </div>
 
-
-      <div class="message-footer">
-        <span class="timestamp">{{ formattedTime }}</span>
-        <span v-if="isSender" class="status-icon">
+      <div class="flex justify-end items-center mt-2 text-xs text-gray-200">
+        <span>{{ formattedTime }}</span>
+        <span v-if="isSender" class="ml-2">
           <svg
             v-if="message.status === 'read'"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            class="icon read-icon"
+            class="w-4 h-4 text-green-500"
           >
-            <path d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z" />
-            <path d="M13.292 8.292a1 1 0 011.416 1.416L11.707 13.71a1 1 0 01-1.415 0L9.293 12.41a1 1 0 011.415-1.415L13.29 8.292z" />
+            <path
+              d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z"
+            />
+            <path
+              d="M13.292 8.292a1 1 0 011.416 1.416L11.707 13.71a1 1 0 01-1.415 0L9.293 12.41a1 1 0 011.415-1.415L13.29 8.292z"
+            />
           </svg>
           <svg
             v-else
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            class="icon sent-icon"
+            class="w-4 h-4 text-gray-400"
           >
-            <path d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z" />
+            <path
+              d="M20.292 6.292a1 1 0 011.416 1.416l-9.003 9.003a1 1 0 01-1.415 0L7.293 13.415a1 1 0 011.415-1.415L11.29 14.58l8.998-8.289z"
+            />
           </svg>
         </span>
       </div>
@@ -74,11 +90,11 @@ export default {
     },
   },
   setup(props) {
-    const defaultAvatar = 'https://readymadeui.com/team-6.webp';
-
     const isSender = computed(() => {
       return props.message.sender.id === props.currentUserId;
     });
+
+    console.log(props.message.sender);
 
     const bubbleClasses = computed(() => {
       return isSender.value
@@ -95,81 +111,24 @@ export default {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     });
 
+    const getInitials = (name) => {
+      if (!name) return '?';
+      const names = name.trim().split(' ');
+      return names.length > 1
+        ? names[0].charAt(0).toUpperCase() + names[1].charAt(0).toUpperCase()
+        : names[0].charAt(0).toUpperCase();
+    };
+
     return {
-      defaultAvatar,
       isSender,
       bubbleClasses,
       bubbleBackground,
       formattedTime,
+      getInitials,
     };
   },
 };
+
 </script>
 
-<style scoped>
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 0.75rem;
-  margin-left: 0.75rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border: 2px solid #ffffff;
-}
 
-.bubble-content {
-  max-width: 600px;
-  padding: 0.75rem 1rem;
-  border-radius: 1.25rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.text-content {
-  font-size: 0.875rem;
-  color: #ffffff;
-}
-
-.audio-content {
-  width: 100%;
-}
-
-.message-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-top: 0.5rem;
-}
-
-.timestamp {
-  font-size: 0.75rem;
-  color: #e2e8f0;
-}
-
-.status-icon {
-  margin-left: 0.5rem;
-}
-
-.icon {
-  width: 16px;
-  height: 16px;
-}
-
-.read-icon {
-  color: #03f88a;
-  width: 24px;
-  height: 24px;
-}
-
-.sent-icon {
-  color: #a0aec0; /* Gray for sent */
-}
-
-@media (max-width: 640px) {
-  .bubble-content {
-    max-width: 100%;
-  }
-}
-</style>

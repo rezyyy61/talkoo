@@ -11,7 +11,10 @@ class UserProfile extends Model
         'ip_address',
         'is_online',
         'last_activity',
-        'avatar',
+        'avatarImage',
+        'avatarColor',
+        'userId',
+        'bio',
     ];
 
     protected $dates = [

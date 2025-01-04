@@ -35,12 +35,13 @@ class FriendshipController extends Controller
         }
 
         // Search users excluding the authenticated user
-        $users = User::where(function ($q) use ($query) {
-            $q->where('name', 'LIKE', "%$query%")
-                ->orWhere('email', 'LIKE', "%$query%");
-        })
+        $users = User::with('profile')
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'LIKE', "%$query%")
+                    ->orWhere('email', 'LIKE', "%$query%");
+            })
             ->where('id', '!=', Auth::id())
-            ->get(['id', 'name', 'email']);
+            ->paginate(10, ['id', 'name', 'email']);
 
         return response()->json($users, 200);
     }
@@ -201,15 +202,17 @@ class FriendshipController extends Controller
         $user = Auth::user();
 
         // Retrieve accepted friends
-        $friends = $user->friends()->get(['users.id', 'users.name', 'users.email']);
+        $friends = $user->friends()->with('profile')->get(['users.id', 'users.name', 'users.email']);
 
         // Retrieve sent friend requests
         $sentRequests = $user->friendRequestsSent()
+            ->with('profile')
             ->select('friendships.id as friendship_id', 'users.id', 'users.name', 'users.email')
             ->get();
 
         // Retrieve received friend requests
         $receivedRequests = $user->friendRequestsReceived()
+            ->with('profile')
             ->select('friendships.id as friendship_id', 'users.id', 'users.name', 'users.email')
             ->get();
 
@@ -221,7 +224,6 @@ class FriendshipController extends Controller
 
         return response()->json($data, 200);
     }
-
 
     /**
      * List all accepted friends.
@@ -238,24 +240,27 @@ class FriendshipController extends Controller
 
         $userId = Auth::id();
 
+        // Retrieve accepted friendships and include profiles
         $friends = Friendship::where(function ($query) use ($userId) {
             $query->where('user_id', $userId)
                 ->orWhere('friend_id', $userId);
         })
             ->where('status', 'accepted')
-            ->with(['user', 'friend'])
+            ->with([
+                'user.profile',
+                'friend.profile'
+            ])
             ->get();
 
+        // Map the relationships to ensure the correct user is returned
         $friendsList = $friends->map(function ($friendship) use ($userId) {
             return $friendship->user_id === $userId ? $friendship->friend : $friendship->user;
         });
 
-        // Return the JSON response with a 200 status code
         return response()->json([
             'friends' => $friendsList
         ], 200);
     }
-
 
 
 

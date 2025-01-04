@@ -1,85 +1,115 @@
 <template>
-  <div class="w-full">
+  <div class="w-full  space-y-8">
     <!-- Sent Requests Section -->
-    <div class="mb-6">
-      <h3 class="text-md font-semibold mb-2">Sent Requests</h3>
-      <div v-if="sentRequests.length === 0" class="text-gray-500">No sent friend requests.</div>
-      <div
-        v-for="request in sentRequests"
-        :key="request.friend_id"
-        class="flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50">
-        <div class="flex items-center gap-4">
-          <img
-            :src="request.profile_image_url || 'https://via.placeholder.com/48'"
-            alt="Friend Profile"
-            class="w-10 h-10 rounded-full border border-gray-200"
-          />
-          <div>
-            <span class="text-gray-700 font-medium font-sans">{{ request.name }}</span>
-            <span class="text-sm text-gray-500 font-sans">{{ request.email }}</span>
+    <div>
+      <h3 class="w-full text-xl font-semibold mb-4 text-gray-700">Sent Friend Requests</h3>
+      <div v-if="sentRequests.length === 0" class="text-gray-500 text-center">
+        You haven't sent any friend requests yet.
+      </div>
+      <div v-else class="space-y-2 w-full">
+        <div
+          v-for="request in sentRequests"
+          :key="request.friend_id"
+          class="flex items-center p-4 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition w-full">
+          <!-- Avatar -->
+          <div
+            v-if="request.profile?.avatarImage"
+            class="w-14 h-14 rounded-full overflow-hidden border border-gray-300">
+            <img
+              :src="`/storage/${request.profile.avatarImage}`"
+              alt="Friend Profile"
+              class="w-full h-full object-cover"
+            />
+          </div>
+          <div
+            v-else
+            :style="{ backgroundColor: request.profile?.avatarColor || '#ccc' }"
+            class="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold">
+            {{ request.name ? request.name.charAt(0).toUpperCase() : '?' }}
+          </div>
+          <!-- User Details -->
+          <div class="ml-4 flex-grow">
+            <span class="block text-gray-800 font-medium">{{ request.name }}</span>
+            <span class="block text-gray-500 text-sm">Pending</span>
           </div>
         </div>
-        <span class="text-sm text-gray-500 font-sans">Pending</span>
       </div>
     </div>
 
     <!-- Received Requests Section -->
-    <div>
-      <h3 class="text-md font-semibold mb-2">Received Requests</h3>
-      <div v-if="receivedRequests.length === 0" class="text-gray-500">No received friend requests.</div>
-      <div
-        v-for="request in receivedRequests"
-        :key="request.friendship_id"
-        class="flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50">
-        <div class="flex items-center gap-4">
-          <img
-            :src="request.profile_image_url || 'https://via.placeholder.com/48'"
-            alt="Sender Profile"
-            class="w-10 h-10 rounded-full border border-gray-200"
-          />
-          <div>
-            <span class="text-gray-700 font-medium font-sans">{{ request.name }}</span>
-            <span class="text-sm text-gray-500 font-sans">{{ request.email }}</span>
+    <div class="w-full">
+      <h3 class="text-xl font-semibold mb-4 text-gray-700">Received Friend Requests</h3>
+      <div v-if="receivedRequests.length === 0" class="w-full text-gray-500 text-center">
+        You don't have any incoming friend requests.
+      </div>
+      <div v-else class="w-full space-y-2">
+        <div
+          v-for="request in receivedRequests"
+          :key="request.friendship_id"
+          class="flex items-center justify-between p-4 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition w-full">
+          <div class="flex items-center gap-4">
+            <!-- Avatar -->
+            <div
+              v-if="request.profile?.avatarImage"
+              class="w-14 h-14 rounded-full overflow-hidden border border-gray-300">
+              <img
+                :src="`/storage/${request.profile.avatarImage}`"
+                alt="Sender Profile"
+                class="w-full h-full object-cover"
+              />
+            </div>
+            <div
+              v-else
+              :style="{ backgroundColor: request.profile?.avatarColor || '#ccc' }"
+              class="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold">
+              {{ request.name ? request.name.charAt(0).toUpperCase() : '?' }}
+            </div>
+            <!-- User Details -->
+            <div>
+              <span class="block text-gray-800 font-medium">{{ request.name }}</span>
+            </div>
           </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <button
-            @click="acceptRequest(request.friendship_id)"
-            class="px-3 py-1 text-sm text-white bg-green-500 rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300">
-            Accept
-          </button>
-          <button
-            @click="declineRequest(request.friendship_id)"
-            class="px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
-            Decline
-          </button>
+          <!-- Action Buttons -->
+          <div class="flex gap-3">
+            <button
+              @click="acceptRequest(request.friendship_id)"
+              class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-full shadow-md hover:bg-green-600 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+
+            </button>
+            <button
+              @click="declineRequest(request.friendship_id)"
+              class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-full shadow-md hover:bg-red-600 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
   </div>
 </template>
-
 <script setup>
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useFriendshipStore } from "@/stores/friendship.js";
-import { useAuthStore } from "@/stores/auth.js";
 import { useToast } from "vue-toastification";
 
 const friendshipStore = useFriendshipStore();
-const authStore = useAuthStore();
-const user = computed(() => authStore.user);
 const toast = useToast();
 
-const notifications = ref([]);
-
-// Using the store directly, no props needed
+// Computed properties for requests
 const sentRequests = computed(() => friendshipStore.sentRequests);
 const receivedRequests = computed(() => friendshipStore.receivedRequests);
 
 // Accept a friend request
 const acceptRequest = async (friendshipId) => {
   try {
-    const message = await friendshipStore.acceptFriendRequest(friendshipId);
+    await friendshipStore.acceptFriendRequest(friendshipId);
     toast.success("Friend request accepted successfully.");
   } catch (error) {
     toast.error(error.message || "Failed to accept request.");
@@ -89,7 +119,7 @@ const acceptRequest = async (friendshipId) => {
 // Decline a friend request
 const declineRequest = async (friendshipId) => {
   try {
-    const message = await friendshipStore.declineFriendRequest(friendshipId);
+    await friendshipStore.declineFriendRequest(friendshipId);
     toast.info("Friend request declined.");
   } catch (error) {
     toast.error(error.message || "Failed to decline request.");
@@ -98,5 +128,24 @@ const declineRequest = async (friendshipId) => {
 </script>
 
 <style scoped>
-/* Add custom styles here if needed */
+/* Minimal and clean styles */
+.bg-gray-50 {
+  background-color: #f9fafb;
+}
+
+.shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.hover\:shadow-md:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.transition {
+  transition: all 0.2s ease-in-out;
+}
 </style>
