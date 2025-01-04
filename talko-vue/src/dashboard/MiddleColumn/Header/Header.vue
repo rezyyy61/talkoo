@@ -64,14 +64,29 @@
       </div>
 
       <div class="ml-4">
-        <img
-          :src="user.profile_image_url || 'https://readymadeui.com/team-6.webp'"
-          alt="User Avatar"
-          class="w-16 h-16 bg-gray-200 rounded-full border-4 border-white shadow-md cursor-pointer hover:scale-105 transition-transform"
+        <div
+          v-if="user.profile.avatarImage"
+          class="relative w-16 h-16 rounded-full overflow-hidden shadow-md border-4 border-white cursor-pointer hover:scale-105 transition-transform"
           @click="viewProfile"
           title="View Profile"
-        />
+        >
+          <img
+            :src="`/storage/${user.profile.avatarImage}`"
+            alt="User Avatar"
+            class="w-full h-full object-cover"
+          />
+        </div>
+        <div
+          v-else
+          :style="{ backgroundColor: user.profile.avatarColor }"
+          class="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold shadow-md border-4 border-white cursor-pointer hover:scale-105 transition-transform"
+          @click="viewProfile"
+          title="View Profile"
+        >
+          {{ user.name ? user.name.charAt(0).toUpperCase() : '?' }}
+        </div>
       </div>
+
     </div>
 
     <!-- Notification Container -->
@@ -100,10 +115,6 @@
   </div>
 </template>
 
-#### 2. **Script Section**
-Update the logic to handle notifications and dynamic updates:
-
-```javascript
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useFriendshipStore } from "@/stores/friendship.js";
@@ -129,7 +140,7 @@ const openAddUserPanel = () => {
 };
 
 const viewProfile = () => {
-  emit("view-profile");
+  emit("view-profile", user.value);
 };
 
 const addNotification = (title, message) => {

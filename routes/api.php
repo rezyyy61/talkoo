@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum', 'is_online'])->group(function () {
     Route::get('/user', [UserProfileController::class, 'getUser']);
+    Route::post('/user/profile/update', [UserProfileController::class, 'update']);
     // Friendship routes
     Route::get('/friends', [FriendshipController::class, 'listFriends']);
     Route::get('/friend/{id}', [FriendshipController::class, 'getSelectedUserWithProfile']);

@@ -70,20 +70,32 @@ export const useFriendshipStore = defineStore('friendship', {
 
     async acceptFriendRequest(friendshipId) {
       try {
-        await axiosInstance.post('/friends/accept', { friendship_id: friendshipId });
+        // Make API request to accept the friend request
+        const response = await axiosInstance.post('/friends/accept', { friendship_id: friendshipId });
+
+        // Find and remove the accepted request from receivedRequests
         const index = this.receivedRequests.findIndex(req => req.friendship_id === friendshipId);
         if (index !== -1) {
           const acceptedFriend = this.receivedRequests.splice(index, 1)[0];
+
+          // Add the accepted friend to the friends list with their profile
           this.friends.push({
             id: acceptedFriend.id,
             name: acceptedFriend.name,
             email: acceptedFriend.email,
+            profile: acceptedFriend.profile || {
+              avatarImage: null,
+              avatarColor: '#ccc'
+            }
           });
+
+          // Update the friendship status to 'accepted'
           if (acceptedFriend.id) {
             this.friendshipStatuses[acceptedFriend.id] = 'accepted';
           }
         }
-        return 'Friend request accepted.';
+
+        return response.data.message || 'Friend request accepted.';
       } catch (error) {
         console.error("Error accepting friend request:", error);
         throw error.response?.data?.message || 'Failed to accept friend request.';

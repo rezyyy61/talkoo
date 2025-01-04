@@ -62,16 +62,27 @@
           ]"
         >
           <!-- Friend Avatar -->
-          <img
-            class="w-14 h-14 rounded-full object-cover flex-shrink-0"
-            :src="friend.avatar || defaultAvatar"
-            :alt="`Avatar of ${friend.name}`"
-          />
+          <div
+            v-if="friend.profile?.avatarImage"
+            class="w-14 h-14 rounded-full overflow-hidden flex-shrink-0"
+          >
+            <img
+              :src="`/storage/${friend.profile.avatarImage}`"
+              :alt="`Avatar of ${friend.name}`"
+              class="w-full h-full object-cover"
+            />
+          </div>
+          <div
+            v-else
+            :style="{ backgroundColor: friend.profile?.avatarColor || '#ccc' }"
+            class="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+          >
+            {{ friend.name ? friend.name.charAt(0).toUpperCase() : '?' }}
+          </div>
 
           <!-- Friend Details -->
           <div class="flex-1 ml-4">
             <h3 class="text-lg font-medium text-gray-800 dark:text-gray-900">{{ friend.name }}</h3>
-            <p class="text-sm text-gray-600 dark:text-gray-700">{{ friend.email }}</p>
           </div>
 
           <!-- Friendship Status -->

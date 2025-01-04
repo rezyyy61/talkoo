@@ -1,17 +1,22 @@
 <template>
   <div class="user-header p-4 bg-[#8a949d] shadow rounded-lg flex items-center">
     <!-- Avatar Section -->
-    <div class="relative flex-shrink-0">
-      <img
-        v-if="user.profile.avatar && !isColorCode(user.profile.avatar)"
-        :src="user.profile.avatar"
-        alt="Avatar"
-        class="w-20 h-20 rounded-full object-cover border-2 border-gray-300 hover:border-gray-500"
-      />
+    <div class="relative flex-shrink-0 cursor-pointer" @click="openProfile">
+      <!-- Display Avatar Image or Avatar Color -->
+      <div
+        v-if="user.profile?.avatarImage"
+        class="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-300 hover:border-gray-500"
+      >
+        <img
+          :src="`/storage/${user.profile.avatarImage}`"
+          alt="Avatar"
+          class="w-full h-full object-cover"
+        />
+      </div>
       <div
         v-else
-        :style="{ backgroundColor: user.profile.avatar  }"
-        class="w-20 h-20 rounded-full flex items-center justify-center text-gray-600 text-xl font-bold border-2 border-gray-300 hover:border-gray-500"
+        :style="{ backgroundColor: user.profile?.avatarColor || '#ccc' }"
+        class="w-20 h-20 rounded-full flex items-center justify-center text-white text-xl font-bold border-2 border-gray-300 hover:border-gray-500"
       >
         {{ getInitials(user.name) }}
       </div>
@@ -50,7 +55,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, PropType} from 'vue';
+import { defineComponent, computed, PropType } from 'vue';
 import { useMessageStore } from '@/stores/message.js';
 
 export default defineComponent({
@@ -67,7 +72,8 @@ export default defineComponent({
           ip_address: string;
           is_online: number;
           last_activity: string;
-          avatar: string;
+          avatarImage: string;
+          avatarColor: string;
           created_at: string;
           updated_at: string;
         };
@@ -75,22 +81,25 @@ export default defineComponent({
       required: true,
     },
   },
-  setup(props) {
+  emits: ['open-profile'],
+
+  setup(props, { emit }) {
     const messageStore = useMessageStore();
 
     const typingUsers = computed(() => messageStore.typingUsers);
 
+    const openProfile = () => {
+      emit('open-profile', props.user);
+    };
+
     return {
       typingUsers,
+      openProfile,
     };
   },
   methods: {
-    isColorCode(avatar: string): boolean {
-      const colorCodeRegex = /^#([0-9A-F]{3}){1,2}$/i;
-      return colorCodeRegex.test(avatar);
-    },
     getInitials(name: string): string {
-      if (!name) return '';
+      if (!name) return '?';
       const names = name.trim().split(' ');
       if (names.length === 1) {
         return names[0].charAt(0).toUpperCase();
@@ -154,5 +163,9 @@ export default defineComponent({
 
 .text-sm {
   font-size: 0.875rem;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

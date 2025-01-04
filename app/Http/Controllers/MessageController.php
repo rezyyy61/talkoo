@@ -29,7 +29,7 @@ class MessageController extends Controller
             'conversation_id' => 'nullable|exists:conversations,id',
             'content'    => 'nullable|string|max:1000',
             'file'       => 'nullable|file|max:200480',
-            'audio'      => 'nullable|mimes:webm,mp3,wav|max:100240',
+            'audio' => 'nullable|mimes:webm,mp3,wav,ogg|max:100240',
         ]);
 
         $sender = auth()->user();
@@ -87,7 +87,7 @@ class MessageController extends Controller
             })->firstOrFail();
 
         $messages = $conversation->messages()
-            ->with(['sender', 'files'])
+            ->with(['sender.profile', 'files'])
             ->orderBy('created_at', 'asc')
             ->get();
 
