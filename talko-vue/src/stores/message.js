@@ -57,7 +57,6 @@ export const useMessageStore = defineStore('message', {
       try {
         const response = await axiosInstance.get(`/conversations/${this.conversationId}/messages`);
         this.messages = response.data.data;
-        console.log(this.messages)
       } catch (error) {
         console.error(error);
       }
@@ -94,6 +93,13 @@ export const useMessageStore = defineStore('message', {
         });
       } catch (error) {
         console.error(error);
+      }
+    },
+    async reactToMessage({ messageId, emoji }) {
+      try {
+        const response = await axiosInstance.post(`/messages/${messageId}/react`, { emoji });
+      } catch (error) {
+        console.error('Error reacting to message:', error);
       }
     },
 
@@ -155,6 +161,34 @@ export const useMessageStore = defineStore('message', {
         .listen('UserTyping', (data) => {
           this.handleUserTyping(data)
         })
+        .listen('ReactionAdded', (data) => {
+          const { message_id, user_id, emoji, added } = data;
+
+          const messageIndex = this.messages.findIndex(msg => msg.id === message_id);
+
+          if (messageIndex !== -1) {
+            if (!this.messages[messageIndex].reactions) {
+              this.messages[messageIndex].reactions = [];
+            }
+
+            if (added) {
+              this.messages[messageIndex].reactions.push({
+                user_id: user_id,
+                emoji: emoji,
+              });
+            } else {
+              const reactionIndex = this.messages[messageIndex].reactions.findIndex(
+                r => r.user_id === user_id && r.emoji === emoji
+              );
+              if (reactionIndex !== -1) {
+                this.messages[messageIndex].reactions.splice(reactionIndex, 1);
+              }
+            }
+          } else {
+            console.warn('Error:', message_id);
+          }
+        })
+
 
       this.isListening = true;
     },

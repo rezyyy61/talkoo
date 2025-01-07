@@ -30,3 +30,4 @@ Broadcast::channel('sameIp.{ipEncoded}', function ($user, $ipEncoded) {
     }
     return false;
 });
+

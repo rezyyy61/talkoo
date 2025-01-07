@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\FriendshipController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\ReactionController;
 use App\Http\Controllers\SameIpUsersController;
 use App\Http\Controllers\UserProfileController;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ Route::middleware(['auth:sanctum', 'is_online'])->group(function () {
     Route::get('/conversations/group/same-ip', [MessageController::class, 'getSameIPConversation']);
     Route::patch('/conversations/{conversationId}/messages/read', [MessageController::class, 'markAsRead']);
     Route::post('/conversations/{conversationId}/typing', [MessageController::class, 'userTyping']);
+    Route::post('/messages/{message}/react', [ReactionController::class, 'react']);
 });
 
 // Routes accessible without authentication

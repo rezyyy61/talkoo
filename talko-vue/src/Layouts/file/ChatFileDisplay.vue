@@ -103,7 +103,6 @@ export default {
 <style scoped>
 .chat-file-display img,
 .chat-file-display video {
-  max-width: 200px;
   margin-bottom: 4px;
 }
 .chat-file-display a {

@@ -87,9 +87,15 @@ class MessageController extends Controller
             })->firstOrFail();
 
         $messages = $conversation->messages()
-            ->with(['sender.profile', 'files'])
+            ->with(['sender.profile', 'files', 'reactions.user'])
             ->orderBy('created_at', 'asc')
-            ->get();
+            ->get()
+            ->map(function($message) {
+                // Transform reactions into an emoji-to-count mapping
+                $reactionCounts = $message->reactions->groupBy('emoji')->map->count()->toArray();
+                $message->reactions = $reactionCounts;
+                return $message;
+            });
 
         return response()->json([
             'success' => true,

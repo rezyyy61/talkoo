@@ -42,4 +42,10 @@ class Message extends Model
     {
         return $this->hasMany(File::class);
     }
+
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(Reaction::class);
+    }
+
 }
