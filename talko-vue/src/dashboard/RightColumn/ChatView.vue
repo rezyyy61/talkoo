@@ -1,12 +1,14 @@
+<!-- File: src/dashboard/RightColumn/ChatView.vue -->
 <template>
   <div
-    class="chatView flex-1 p-4 overflow-y-auto w-full h-full flex flex-col space-y-4"
+    class="chatView flex-1 p-4 w-full h-full flex flex-col space-y-4"
+    :class="contextMenuVisible ? 'overflow-hidden' : 'overflow-y-auto'"
     ref="messagesContainer"
     @scroll="handleScroll"
   >
     <!-- Loading State -->
     <div v-if="messageStore.isLoading" class="flex justify-center items-center">
-      <!-- Spinner SVG -->
+      <!-- Spinner -->
       <svg
         class="animate-spin h-8 w-8 text-blue-500"
         xmlns="http://www.w3.org/2000/svg"
@@ -41,6 +43,7 @@
         :key="message.id"
         :message="message"
         :currentUserId="currentUserId"
+        @right-clicked="handleMessageRightClick"
       />
     </div>
 
@@ -54,10 +57,7 @@
       v-if="messageStore.typingUsers.includes(messageStore.receiverId)"
       class="typing-indicator flex items-center"
     >
-      <img
-        alt="Receiver Avatar"
-        class="w-10 h-10 rounded-full mr-2"
-      />
+      <img alt="Receiver Avatar" class="w-10 h-10 rounded-full mr-2" />
       <span class="dot" style="background-color: #2563eb;"></span>
       <span class="dot" style="background-color: #2563eb;"></span>
       <span class="dot" style="background-color: #2563eb;"></span>
@@ -81,55 +81,137 @@
       <span>New Messages</span>
     </div>
   </div>
+
+  <!-- Context Menu -->
+  <ContextMenu
+    :visible="contextMenuVisible"
+    :position="contextMenuPosition"
+    :menuItems="contextMenuItems"
+    @close="contextMenuVisible = false"
+    @select="handleContextMenuSelect"
+  />
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, watch, ref, onMounted, nextTick } from 'vue';
+import { defineComponent, computed, ref, watch, onMounted, nextTick } from 'vue';
 import { useMessageStore } from '@/stores/message';
 import { useAuthStore } from '@/stores/auth';
 import ChatBubble from "@/dashboard/RightColumn/ChatBubble.vue";
+import ContextMenu from "@/dashboard/RightColumn/ContextMenu.vue";
+
+interface RightClickPayload {
+  message?: any;
+  event?: MouseEvent;
+}
 
 export default defineComponent({
   name: 'ChatView',
-  components: { ChatBubble },
+  components: { ChatBubble, ContextMenu },
   setup() {
+    // Store references
     const messageStore = useMessageStore();
     const authStore = useAuthStore();
 
+    // Identify current user
     const currentUserId = computed(() => authStore.user?.id || null);
 
+    // Chat container
     const messagesContainer = ref<HTMLElement | null>(null);
-    const showNewMessageIndicator = ref(false);
 
+    // "New message" indicator state
+    const showNewMessageIndicator = ref(false);
     let isUserAtBottom = true;
 
-    const scrollToBottom = () => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTo({
-          top: messagesContainer.value.scrollHeight,
-          behavior: 'smooth'
-        });
-        showNewMessageIndicator.value = false;
-        isUserAtBottom = true;
-      }
-    };
+    // Context menu states
+    const contextMenuVisible = ref(false);
+    const contextMenuPosition = ref({ x: 0, y: 0 });
+    const contextMenuItems = ref<any[]>([]);
 
-    const handleScroll = () => {
+    // Watch contextMenuVisible to lock/unlock scrolling
+    watch(contextMenuVisible, (visible) => {
       if (!messagesContainer.value) return;
+      messagesContainer.value.style.overflowY = visible ? 'hidden' : 'auto';
+    });
 
+    // Scroll to bottom helper
+    function scrollToBottom() {
+      if (!messagesContainer.value) return;
+      messagesContainer.value.scrollTo({
+        top: messagesContainer.value.scrollHeight,
+        behavior: 'smooth',
+      });
+      showNewMessageIndicator.value = false;
+      isUserAtBottom = true;
+    }
+
+    // Handle container scroll
+    function handleScroll() {
+      if (!messagesContainer.value) return;
       const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
       const threshold = 50;
 
       if (scrollHeight - scrollTop - clientHeight < threshold) {
         isUserAtBottom = true;
         showNewMessageIndicator.value = false;
-
         messageStore.markAsRead();
       } else {
         isUserAtBottom = false;
       }
-    };
+    }
 
+    function handleMessageRightClick(
+      { message, event }: RightClickPayload = {}
+    ) {
+      if (contextMenuVisible.value) {
+        contextMenuVisible.value = false;
+        return;
+      }
+
+      if (!message || !event) {
+        return;
+      }
+
+      contextMenuItems.value = getMenuItemsForMessage(message);
+      contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+      contextMenuVisible.value = true;
+    }
+
+    function getMenuItemsForMessage(message: any) {
+      const isSender = message.sender.id === currentUserId.value;
+      const messageType = message.message_type;
+
+      // Base items
+      let items = [
+        { label: 'Reply', action: 'reply' },
+        { label: 'Forward', action: 'forward' },
+        { label: 'Pin', action: 'pin' },
+        { label: 'Copy Selected', action: 'copy-selected' },
+        { label: 'Select', action: 'select' },
+        { label: 'Delete', action: 'delete' },
+      ];
+
+      if (isSender && messageType === 'text') {
+        items.push({ label: 'Edit', action: 'edit' });
+      } else if (!isSender) {
+        items.push({ label: 'Report', action: 'report' });
+      }
+
+      if (messageType === 'text') {
+        items.push({ label: 'Copy Text', action: 'copy-text' });
+      }
+      if (messageType === 'audio' || messageType === 'file') {
+        items.push({ label: 'Save as', action: 'save-as' });
+      }
+
+      return items;
+    }
+
+    function handleContextMenuSelect(item: any) {
+      console.log('User selected:', item.action);
+      // Do something with the action
+    }
+
+    // Watch for new messages
     watch(
       () => messageStore.messages,
       async (newMessages, oldMessages) => {
@@ -144,28 +226,27 @@ export default defineComponent({
 
     watch(
       () => messageStore.receiverId,
-      async (newReceiverId, oldReceiverId) => {
+      async (newReceiverId) => {
         if (newReceiverId) {
           messageStore.setReceiverId(newReceiverId);
-
           await nextTick();
           scrollToBottom();
         }
       },
       { immediate: true }
     );
+
     watch(
       () => messageStore.conversationId,
       async (newConversationId) => {
         if (newConversationId) {
-          messageStore.setConversationId(newConversationId)
+          messageStore.setConversationId(newConversationId);
           await nextTick();
           scrollToBottom();
         }
       },
       { immediate: true }
     );
-
 
     onMounted(async () => {
       if (messageStore.messages.length > 0) {
@@ -179,8 +260,13 @@ export default defineComponent({
       currentUserId,
       messagesContainer,
       showNewMessageIndicator,
+      contextMenuVisible,
+      contextMenuPosition,
+      contextMenuItems,
       scrollToBottom,
       handleScroll,
+      handleMessageRightClick,
+      handleContextMenuSelect,
     };
   },
 });
@@ -191,7 +277,7 @@ export default defineComponent({
   position: relative;
 }
 
-/* Typing Indicator */
+/* For the typing indicator demo */
 .typing-indicator {
   display: flex;
   gap: 0.25rem;

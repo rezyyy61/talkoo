@@ -1,113 +1,68 @@
 <template>
-  <div class="bg-[#434552] py-6 px-14 h-screen flex overflow-hidden">
-    <!-- Left Column (Fixed Width: 110px) -->
-    <div
-      class="bg-gray-600 flex flex-col items-center rounded-l-[2rem]"
-      style="width: 110px; height: 100%;"
-    >
-      <div class="flex-1 w-full flex flex-col items-center relative">
-        <div
-          class="bg-white w-3/4 h-full rounded-[2rem] flex items-center justify-center absolute left-0"
-        >
-          <IconColumn @change-view="currentView = $event" />
-        </div>
-      </div>
+  <div :class="{ 'dark': isDarkMode }" class="bg-[#434552] py-6 px-14 h-screen flex overflow-hidden transition-colors duration-300">
+    <!-- Left Column (IconColumn) -->
+    <div class="left-column shared-column-style border border-blue-200 bg-white dark:bg-gray-800 shadow-lg rounded-lg transition-colors duration-300">
+      <IconColumn
+        @change-view="currentView = $event"
+        @toggle-theme="toggleTheme"
+        :isDarkMode="isDarkMode"
+      />
     </div>
 
-    <!-- Main Content, Right Column, and Add User Panel -->
-    <div class="flex-1 flex flex-col glass-effect relative overflow-hidden">
+    <!-- Main Content Area -->
+    <div class="main-content flex-1 flex flex-col glass-effect relative overflow-hidden bg-gray-100 dark:bg-gray-800 transition-colors duration-300">
       <!-- Header -->
-      <div class="h-[90px]">
+      <div class="header h-[90px] bg-white dark:bg-gray-800 shadow-md transition-colors duration-300">
         <Header @view-profile="toggleUserProfile" @add-user="toggleAddUserPanel" />
       </div>
 
-      <!-- Content Area -->
-      <div class="flex flex-1 transition-all duration-300 overflow-hidden ">
+      <!-- Content Area with Middle, Right Columns, and Panels -->
+      <div class="content-area flex flex-1 gap-4 p-4 flex-col md:flex-row">
         <!-- Middle Column -->
-        <div class="w-[450px] sidebar mx-3 flex flex-col">
-          <div class="bg-[#8a949d] p-3 h-[120px] title flex items-center">
-            <span class="circle-indicator"></span>
-            <h2 class="text-2xl font-extrabold text-white tracking-wide capitalize ml-2">
-              {{ viewTitle }}
-            </h2>
-          </div>
+        <MiddleColumn
+          class="w-full md:w-1/4 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg transition-colors duration-300 hover:shadow-lg"
+          :currentView="currentView"
+          :viewTitle="viewTitle"
+          :user="user"
+          :selectedUser="selectedUser"
+          @select-user="handleSelectUser"
+          @toggle-user-profile="toggleUserProfile"
+        />
 
-          <div class="sidebar-content bg-[#ffffff] dark:bg-gray-900 h-full flex flex-col overflow-y-auto">
-            <!-- Conditionally Render Based on currentView -->
-            <div v-if="currentView === 'private'">
-              <Friends
-                @select-user="handleSelectUser"
-                :userId="user.id"
-                :userName="user.name"
-                :selectedUser="selectedUser"
-              />
-            </div>
-            <div v-else-if="currentView === 'group'">
-              <GroupChat />
-            </div>
-            <div v-else-if="currentView === 'same-ip'">
-              <SameIpChat :userProp="user" @open-profile="toggleUserProfile" />
-            </div>
-            <div v-else>
-              Default Content
-            </div>
-          </div>
-        </div>
+        <!-- Vertical Divider -->
+        <div class="hidden md:block border-l border-gray-300 dark:border-gray-700"></div>
 
         <!-- Right Column -->
-        <div class="bg-[#8a949d] flex-1 flex flex-col mr-2">
-          <!-- ChatHeader Section -->
-          <div v-if="currentView === 'same-ip'" class="userHeader mb-4">
-            <ChatHeader :user="groupHeader" />
-          </div>
-          <div
-            v-else-if="selectedUser && selectedUser.id !== user.id"
-            class="userHeader mb-4"
-          >
-            <ChatHeader :user="selectedUser" @open-profile="toggleUserProfile" />
-          </div>
-          <div v-else class="userHeader mb-4">
-            <p class="text-white">Select a user to view details.</p>
-          </div>
+        <RightColumn
+          class="flex-1 bg-gray-200 dark:bg-gray-600 shadow-md rounded-lg transition-colors duration-300 hover:shadow-lg"
+          :currentView="currentView"
+          :selectedUser="selectedUser"
+          :user="user"
+          :groupHeader="groupHeader"
+          @toggle-user-profile="toggleUserProfile"
+        />
 
-          <!-- Chat View Section -->
-          <div v-if="currentView === 'same-ip' || selectedUser" class="flex-1 overflow-y-auto">
-            <ChatView />
-          </div>
-
-          <div v-else class="flex-1 flex items-center justify-center">
-            <p class="text-gray-500 dark:text-gray-400">Chat view goes here...</p>
-          </div>
-
-          <!-- Input Section -->
-          <div class="chatInput mt-4 mb-2">
-            <ChatInput :chatType="currentView === 'same-ip' ? 'group' : 'private'" />
-          </div>
-        </div>
-
-        <!-- User Profile Panel -->
-        <transition name="slide-in">
+        <!-- Transition Group for Panels -->
+        <transition-group
+          name="slide-group"
+          tag="div"
+          :class="['flex-shrink-0 flex flex-col gap-4 transition-all duration-300', panelWidth]"
+        >
           <div
             v-if="showUserProfile"
-            class="w-[450px] bg-white shadow-lg flex-shrink-0 transition-transform duration-300 rounded-xl overflow-y-auto max-h-screen"
+            key="user-profile"
+            class="profile-panel h-screen bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg hover:shadow-lg"
           >
-            <UserProfilePanel
-              v-if="showUserProfile"
-              :user="profileUser"
-              @close="toggleUserProfile" />
-
+            <UserProfilePanel :user="profileUser" @close="toggleUserProfile" />
           </div>
-        </transition>
-
-        <!-- Add User Panel -->
-        <transition name="slide-in">
           <div
             v-if="showAddUserPanel"
-            class="w-[450px] bg-white shadow-lg flex-shrink-0 transition-transform duration-300 mx-3 flex flex-col overflow-hidden"
+            key="add-user"
+            class="add-user-panel bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg hover:shadow-lg"
           >
             <AddUserPanel @close="toggleAddUserPanel" />
           </div>
-        </transition>
+        </transition-group>
       </div>
     </div>
 
@@ -121,32 +76,22 @@ import { defineComponent, ref, computed, watch } from 'vue';
 import IconColumn from "@/dashboard/LeftColumn/IconColumn.vue";
 import UserProfilePanel from "@/dashboard/MiddleColumn/Header/UserProfilePanel.vue";
 import AddUserPanel from "@/dashboard/MiddleColumn/Header/AddUserPanel.vue";
-import PrivateChat from "@/dashboard/MiddleColumn/PrivateChat.vue";
-import GroupChat from "@/dashboard/MiddleColumn/GroupChat.vue";
-import Friends from "@/dashboard/MiddleColumn/Friends.vue";
+import MiddleColumn from "@/dashboard/MiddleColumn/MiddleColumn.vue";
+import RightColumn from "@/dashboard/RightColumn/RightColumn.vue";
 import Notification from "@/Pages/Notification.vue";
 import { useAuthStore } from "@/stores/auth";
-import ChatHeader from "@/dashboard/RightColumn/ChatHeader.vue";
-import ChatInput from "@/dashboard/RightColumn/ChatInput.vue";
-import ChatView from "@/dashboard/RightColumn/ChatView.vue";
 import Header from "@/dashboard/MiddleColumn/Header/Header.vue";
 import { useMessageStore } from '@/stores/message';
-import SameIpChat from "@/dashboard/MiddleColumn/SameIPChat.vue";
 
 export default defineComponent({
   name: 'DashboardComponent',
   components: {
-    SameIpChat,
     IconColumn,
     UserProfilePanel,
     AddUserPanel,
-    PrivateChat,
-    GroupChat,
-    Friends,
+    MiddleColumn,
+    RightColumn,
     Notification,
-    ChatHeader,
-    ChatInput,
-    ChatView,
     Header,
   },
   setup() {
@@ -157,6 +102,41 @@ export default defineComponent({
     const user = computed(() => authStore.user);
     const selectedUser = ref(null);
     const profileUser = ref(null);
+
+    // Theme State
+    const isDarkMode = ref(false);
+
+    const toggleTheme = () => {
+      isDarkMode.value = !isDarkMode.value;
+      // Persist the theme preference
+      localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
+
+      // Apply the theme by toggling the 'dark' class on the root element
+      if (isDarkMode.value) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    // Initialize theme based on user preference or system settings
+    const initializeTheme = () => {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') {
+        isDarkMode.value = true;
+      } else if (savedTheme === 'light') {
+        isDarkMode.value = false;
+      } else {
+        // Default to system preference
+        isDarkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+
+      if (isDarkMode.value) {
+        document.documentElement.classList.add('dark');
+      }
+    };
+
+    initializeTheme();
 
     const viewTitle = computed(() => {
       switch (currentView.value) {
@@ -170,21 +150,6 @@ export default defineComponent({
           return 'Friends';
         default:
           return 'Dashboard';
-      }
-    });
-
-    const headerIcon = computed(() => {
-      switch (currentView.value) {
-        case 'private':
-          return 'PrivateIcon';
-        case 'group':
-          return 'GroupIcon';
-        case 'same-ip':
-          return 'SameIPIcon';
-        case 'friends':
-          return 'FriendsIcon';
-        default:
-          return 'DefaultIcon';
       }
     });
 
@@ -237,7 +202,6 @@ export default defineComponent({
       }
     };
 
-
     watch(
       () => currentView.value,
       async (newVal) => {
@@ -253,6 +217,14 @@ export default defineComponent({
       }
     );
 
+    // Computed property for dynamic panel width
+    const panelWidth = computed(() => {
+      if (showUserProfile.value || showAddUserPanel.value) {
+        return 'w-2/6';
+      }
+      return 'w-0';
+    });
+
     return {
       showUserProfile,
       toggleUserProfile,
@@ -261,86 +233,85 @@ export default defineComponent({
       currentView,
       viewTitle,
       groupHeader,
-      headerIcon,
       user,
       selectedUser,
       profileUser,
       handleSelectUser,
+      isDarkMode,
+      toggleTheme,
+      panelWidth,
     };
   },
 });
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Serif+Text:ital@1&family=PT+Serif+Caption:ital@0;1&display=swap');
-
-.middle-header {
-  font-family: 'Montserrat', sans-serif;
-}
-
-.container {
-  display: flex;
+.left-column {
+  padding: 1.5rem;
   height: 100%;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
-  border-radius: 50px;
+  transition: background-color 0.3s;
+  border-radius: 2rem 0 0 2rem;
 }
 
-.sidebar {
-  position: relative;
-  overflow: hidden;
-  z-index: 1;
-}
-
-.glass-effect {
-  background: #d5d6da;
+.main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 10px;
+  border-radius: 0 1rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
 }
 
-.sidebar-content {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  background: #ffffff;
+.header {
+  background-color: #ffffff;
+  dark:bg-gray-800;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s;
 }
 
-.title {
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
+.content-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
-.title h2 {
-  font-family: "DM Serif Text", serif;
-  font-weight: 400;
-  font-style: italic;
+.slide-group-enter-active,
+.slide-group-leave-active {
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
 
-.circle-indicator {
-  width: 36px;
-  height: 36px;
-  background-color: #71b3bb;
-  border-radius: 50%;
-}
-
-/* Slide-in transition for AddUserPanel and UserProfilePanel */
-.slide-in-enter-active,
-.slide-in-leave-active {
-  transition: transform 0.3s ease-in-out;
-}
-.slide-in-enter-from {
+.slide-group-enter-from,
+.slide-group-leave-to {
   transform: translateX(100%);
+  opacity: 0;
 }
-.slide-in-enter-to {
+
+.slide-group-enter-to,
+.slide-group-leave-from {
   transform: translateX(0);
+  opacity: 1;
 }
-.slide-in-leave-from {
-  transform: translateX(0);
+
+/* Additional Styles to Enhance Transition-Group Size */
+.profile-panel,
+.add-user-panel {
+  /* Ensure the panels take full available height */
+  max-height: 100vh;
+  /* Optional: Add padding or margin if needed */
+  padding: 1rem;
 }
-.slide-in-leave-to {
-  transform: translateX(100%);
+
+/* Apply transition to width */
+.slide-group {
+  transition: width 0.3s ease-in-out;
+}
+
+/* Ensure the transition-group can handle dynamic width */
+.transition-all {
+  transition: all 0.3s ease-in-out;
 }
 </style>
