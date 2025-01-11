@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import axiosInstance from '@/axios';
 import { useAuthStore } from '@/stores/auth';
+import { useFriendshipStore } from "@/stores/friendship.js";
 
 export const useMessageStore = defineStore('message', {
   state: () => ({
@@ -12,7 +13,8 @@ export const useMessageStore = defineStore('message', {
     hasError: false,
     error: null,
     isListening: false,
-    typingUsers: []
+    typingUsers: [],
+    lastMessages: {},
   }),
 
   actions: {
@@ -34,6 +36,7 @@ export const useMessageStore = defineStore('message', {
         throw error;
       }
     },
+
     async getSameIPConversation() {
       try {
         this.isLoading = true;
@@ -57,7 +60,6 @@ export const useMessageStore = defineStore('message', {
       try {
         const response = await axiosInstance.get(`/conversations/${this.conversationId}/messages`);
         this.messages = response.data.data;
-        console.log(this.messages)
       } catch (error) {
         console.error(error);
       }
@@ -158,6 +160,7 @@ export const useMessageStore = defineStore('message', {
 
       this.isListening = true;
     },
+
     async userTyping(isTyping) {
 
       if (!this.conversationId) return;
@@ -203,6 +206,33 @@ export const useMessageStore = defineStore('message', {
 
     removeTypingUser(userId) {
       this.typingUsers = this.typingUsers.filter(user => user.id !== userId);
-    }
+    },
+
+    async fetchLastMessage(conversationId) {
+      try {
+        const response = await axiosInstance.get(`/conversations/${conversationId}/messages?limit=1`);
+        return response.data.data[0] || null;
+      } catch (error) {
+        console.error('Error fetching last message:', error);
+        return null;
+      }
+    },
+
+    async fetchAllLastMessages() {
+      try {
+        // Assuming friendshipStore.friends contains conversationId for each friend
+        const friendshipStore = useFriendshipStore();
+        for (const friend of friendshipStore.friends) {
+          if (friend.conversationId) {
+            const lastMessage = await this.fetchLastMessage(friend.conversationId);
+            this.lastMessages[friend.id] = lastMessage;
+            // Optionally, you can assign it directly to the friend object
+            friend.lastMessage = lastMessage;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching all last messages:', error);
+      }
+    },
   }
 });

@@ -18,9 +18,6 @@ class FriendRequestUpdated implements ShouldBroadcastNow
 
     public function __construct($friendship, $status)
     {
-        if (!$friendship) {
-            Log::error('Friendship object is null in FriendRequestUpdated event.');
-        }
         $this->friendship = $friendship;
         $this->status = $status;
 
