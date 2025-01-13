@@ -30,6 +30,7 @@ Route::middleware(['auth:sanctum', 'is_online'])->group(function () {
     // Messages routes
     Route::post('/messages/send', [MessageController::class, 'sendMessage']);
     Route::get('/conversations/{conversationId}/messages', [MessageController::class, 'getMessages']);
+    Route::get('/messages/{id}', [MessageController::class, 'getMessageById']);
     Route::get('/conversations/by-user/{receiverId}', [MessageController::class, 'getConversation']);
     Route::get('/conversations/group/same-ip', [MessageController::class, 'getSameIPConversation']);
     Route::patch('/conversations/{conversationId}/messages/read', [MessageController::class, 'markAsRead']);

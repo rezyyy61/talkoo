@@ -15,6 +15,7 @@ export const useMessageStore = defineStore('message', {
     isListening: false,
     typingUsers: [],
     lastMessages: {},
+    replyToMessage: null,
   }),
 
   actions: {
@@ -24,11 +25,17 @@ export const useMessageStore = defineStore('message', {
     setConversationId(id) {
       this.conversationId = id;
     },
+    setReplyToMessage(message) {
+      this.replyToMessage = message;
+    },
+
+    clearReplyToMessage() {
+      this.replyToMessage = null;
+    },
 
     async getPrivateConversationId(receiverId) {
       try {
         const response = await axiosInstance.get(`/conversations/by-user/${receiverId}`);
-
         this.conversationId = response.data.conversation_id;
         return this.conversationId;
       } catch (error) {
@@ -56,12 +63,45 @@ export const useMessageStore = defineStore('message', {
         console.warn('No conversationId set');
         return;
       }
-      this.listenForNewMessages();
+
       try {
         const response = await axiosInstance.get(`/conversations/${this.conversationId}/messages`);
         this.messages = response.data.data;
+
+        for (const msg of this.messages) {
+          if (msg.reply_to_message_id && !this.getMessageById(msg.reply_to_message_id)) {
+            await this.fetchMessageById(msg.reply_to_message_id);
+          }
+        }
+        this.listenForNewMessages();
       } catch (error) {
         console.error(error);
+      }
+    },
+
+    // --- IMPORTANT CHANGE HERE: using "==" instead of "==="
+    getMessageById(id) {
+      return this.messages.find(msg => msg.id == id) || null;
+    },
+
+    async fetchMessageById(id) {
+      try {
+        console.log(`Fetching message by ID: ${id}`);
+        const response = await axiosInstance.get(`/messages/${id}`);
+        const message = response.data.data;
+        this.addMessage(message);
+        console.log('Fetched and added message:', message);
+        return message;
+      } catch (error) {
+        console.error(`Error fetching message with ID ${id}:`, error);
+        return null;
+      }
+    },
+
+    addMessage(message) {
+      if (!this.messages.find(msg => msg.id === message.id)) {
+        this.messages.push(message);
+        console.log('MessageStore: New message added:', message);
       }
     },
 
@@ -80,6 +120,9 @@ export const useMessageStore = defineStore('message', {
         if (payload.audio) {
           formData.append('audio', payload.audio);
         }
+        if (this.replyToMessage) {
+          formData.append('reply_to_message_id', this.replyToMessage.id);
+        }
         const conversationId = payload.conversation_id || this.conversationId;
         if (conversationId) {
           formData.append('conversation_id', conversationId);
@@ -94,6 +137,7 @@ export const useMessageStore = defineStore('message', {
           maxBodyLength: Infinity,
           maxContentLength: Infinity,
         });
+        this.clearReplyToMessage();
       } catch (error) {
         console.error(error);
       }
@@ -135,10 +179,13 @@ export const useMessageStore = defineStore('message', {
       }
 
       window.Echo.private(channelName)
-        .listen('MessageSent', (newMessage) => {
+        .listen('MessageSent', async (newMessage) => {
           const exists = this.messages.some(msg => msg.id === newMessage.id);
           if (!exists) {
             this.messages.push(newMessage);
+          }
+          if (newMessage.reply_to_message_id && !this.getMessageById(newMessage.reply_to_message_id)) {
+            await this.fetchMessageById(newMessage.reply_to_message_id);
           }
         })
         .listen('MessageRead', (data) => {
@@ -155,16 +202,14 @@ export const useMessageStore = defineStore('message', {
           });
         })
         .listen('UserTyping', (data) => {
-          this.handleUserTyping(data)
-        })
+          this.handleUserTyping(data);
+        });
 
       this.isListening = true;
     },
 
     async userTyping(isTyping) {
-
       if (!this.conversationId) return;
-
       try {
         await axiosInstance.post(`/conversations/${this.conversationId}/typing`, {
           is_typing: isTyping,
@@ -199,7 +244,6 @@ export const useMessageStore = defineStore('message', {
           }, 3000);
         }
       } else {
-
         this.removeTypingUser(user_id);
       }
     },
@@ -234,5 +278,5 @@ export const useMessageStore = defineStore('message', {
         console.error('Error fetching all last messages:', error);
       }
     },
-  }
+  },
 });
