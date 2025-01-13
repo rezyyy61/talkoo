@@ -61,7 +61,7 @@ class MessageService
     /**
      * Send a text message
      */
-    public function sendTextMessage(Conversation $conversation, User $sender, $text): Message
+    public function sendTextMessage(Conversation $conversation, User $sender, $text, $replyToMessageId = null): Message
     {
         $message = Message::create([
             'conversation_id' => $conversation->id,
@@ -69,6 +69,7 @@ class MessageService
             'message_type'    => MessageType::TEXT,
             'content'         => $text,
             'status'          => MessageStatus::SENT,
+            'reply_to_message_id'=> $replyToMessageId,
         ]);
 
         broadcast(new MessageSent($message));
@@ -78,7 +79,7 @@ class MessageService
     /**
      * Send voice message
      */
-    public function sendAudioMessage(Conversation $conversation, User $sender, $audioFile): Message
+    public function sendAudioMessage(Conversation $conversation, User $sender, $audioFile, $replyToMessageId = null): Message
     {
         $audioPath = $audioFile->store('voice_messages', 'public');
 
@@ -88,6 +89,7 @@ class MessageService
             'message_type'    => MessageType::AUDIO,
             'content'         => asset('storage/' . $audioPath),
             'status'          => MessageStatus::SENT,
+            'reply_to_message_id'=> $replyToMessageId,
         ]);
 
         broadcast(new MessageSent($message));
@@ -97,7 +99,7 @@ class MessageService
     /**
      * Send file messages (photo, video, PDF or any other file)
      */
-    public function sendFileMessage(Conversation $conversation, User $sender, $uploadedFile): Message
+    public function sendFileMessage(Conversation $conversation, User $sender, $uploadedFile, $replyToMessageId = null): Message
     {
         $extension    = strtolower($uploadedFile->getClientOriginalExtension());
         $storedPath   = $uploadedFile->store('file_messages', 'public');
@@ -128,6 +130,7 @@ class MessageService
             'message_type'    => $messageType,
             'content'         => null,
             'status'          => MessageStatus::SENT,
+            'reply_to_message_id'=> $replyToMessageId,
         ]);
 
         File::create([

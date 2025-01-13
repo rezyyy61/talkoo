@@ -1,66 +1,67 @@
 <!-- File: src/dashboard/RightColumn/ChatView.vue -->
 <template>
-  <div
-    class="chatView flex-1 p-4 w-full h-full flex flex-col space-y-4"
-    :class="contextMenuVisible ? 'overflow-hidden' : 'overflow-y-auto'"
-    ref="messagesContainer"
-    @scroll="handleScroll"
-  >
-    <!-- Loading State -->
-    <div v-if="messageStore.isLoading" class="flex justify-center items-center">
-      <!-- Spinner -->
-      <svg
-        class="animate-spin h-8 w-8 text-blue-500"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          class="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          stroke-width="4"
-        ></circle>
-        <path
-          class="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8v8H4z"
-        ></path>
-      </svg>
-    </div>
-
-    <!-- Error State -->
-    <div v-else-if="messageStore.hasError" class="text-red-500 text-center">
-      {{ messageStore.error }}
-    </div>
-
-    <!-- Messages List -->
-    <div v-else-if="messageStore.messages.length > 0" class="flex flex-col space-y-2">
-      <ChatBubble
-        v-for="message in messageStore.messages"
-        :key="message.id"
-        :message="message"
-        :currentUserId="currentUserId"
-        @right-clicked="handleMessageRightClick"
-      />
-    </div>
-
-    <!-- No Messages Placeholder -->
-    <div v-else class="text-center text-white text-xl font-bold">
-      <p>No messages yet. Start the conversation!</p>
-    </div>
-
-    <!-- Typing Indicator -->
+  <div class="chatContainer relative flex flex-col h-full w-full">
     <div
-      v-if="messageStore.typingUsers.includes(messageStore.receiverId)"
-      class="typing-indicator flex items-center"
+      class="chatView flex-1 p-4 w-full h-full flex flex-col space-y-4 overflow-y-auto"
+      ref="messagesContainer"
+      @scroll="handleScroll"
     >
-      <img alt="Receiver Avatar" class="w-10 h-10 rounded-full mr-2" />
-      <span class="dot" style="background-color: #2563eb;"></span>
-      <span class="dot" style="background-color: #2563eb;"></span>
-      <span class="dot" style="background-color: #2563eb;"></span>
+      <!-- Loading State -->
+      <div v-if="messageStore.isLoading" class="flex justify-center items-center">
+        <!-- Spinner -->
+        <svg
+          class="animate-spin h-8 w-8 text-blue-500"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8H4z"
+          ></path>
+        </svg>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="messageStore.hasError" class="text-red-500 text-center">
+        {{ messageStore.error }}
+      </div>
+
+      <!-- Messages List -->
+      <div v-else-if="messageStore.messages.length > 0" class="flex flex-col space-y-2">
+        <ChatBubble
+          v-for="message in messageStore.messages"
+          :key="message.id"
+          :message="message"
+          :currentUserId="currentUserId"
+          @right-clicked="handleMessageRightClick"
+        />
+      </div>
+
+      <!-- No Messages Placeholder -->
+      <div v-else class="text-center text-white text-xl font-bold">
+        <p>No messages yet. Start the conversation!</p>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div
+        v-if="messageStore.typingUsers.includes(messageStore.receiverId)"
+        class="typing-indicator flex items-center"
+      >
+        <img alt="Receiver Avatar" class="w-10 h-10 rounded-full mr-2" />
+        <span class="dot" style="background-color: #2563eb;"></span>
+        <span class="dot" style="background-color: #2563eb;"></span>
+        <span class="dot" style="background-color: #2563eb;"></span>
+      </div>
     </div>
 
     <!-- New Message Indicator -->
@@ -68,6 +69,8 @@
       v-if="showNewMessageIndicator"
       class="new-message-indicator"
       @click="scrollToBottom"
+      role="button"
+      aria-label="Scroll to bottom"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -78,18 +81,18 @@
       >
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
-      <span>New Messages</span>
+      <span v-if="newMessageCount > 0" class="message-count">{{ newMessageCount }}</span>
     </div>
-  </div>
 
-  <!-- Context Menu -->
-  <ContextMenu
-    :visible="contextMenuVisible"
-    :position="contextMenuPosition"
-    :menuItems="contextMenuItems"
-    @close="contextMenuVisible = false"
-    @select="handleContextMenuSelect"
-  />
+    <!-- Context Menu -->
+    <ContextMenu
+      :visible="contextMenuVisible"
+      :position="contextMenuPosition"
+      :menuItems="contextMenuItems"
+      @close="contextMenuVisible = false"
+      @select="handleContextMenuSelect"
+    />
+  </div>
 </template>
 
 <script lang="ts">
@@ -108,54 +111,63 @@ export default defineComponent({
   name: 'ChatView',
   components: { ChatBubble, ContextMenu },
   setup() {
-    // Store references
     const messageStore = useMessageStore();
     const authStore = useAuthStore();
-
-    // Identify current user
     const currentUserId = computed(() => authStore.user?.id || null);
-
-    // Chat container
     const messagesContainer = ref<HTMLElement | null>(null);
-
-    // "New message" indicator state
-    const showNewMessageIndicator = ref(false);
-    let isUserAtBottom = true;
-
-    // Context menu states
+    const newMessageCount = ref(0);
+    const isUserAtBottom = ref(true);
+    const isProgrammaticallyScrolling = ref(false);
+    const userHasScrolledUp = ref(false);
     const contextMenuVisible = ref(false);
     const contextMenuPosition = ref({ x: 0, y: 0 });
     const contextMenuItems = ref<any[]>([]);
+    const selectedMessageForContextMenu = ref(null);
 
-    // Watch contextMenuVisible to lock/unlock scrolling
+
+    const showNewMessageIndicator = computed(() => newMessageCount.value > 0 || userHasScrolledUp.value);
+
     watch(contextMenuVisible, (visible) => {
       if (!messagesContainer.value) return;
       messagesContainer.value.style.overflowY = visible ? 'hidden' : 'auto';
     });
 
-    // Scroll to bottom helper
     function scrollToBottom() {
       if (!messagesContainer.value) return;
+      isProgrammaticallyScrolling.value = true;
       messagesContainer.value.scrollTo({
         top: messagesContainer.value.scrollHeight,
         behavior: 'smooth',
       });
-      showNewMessageIndicator.value = false;
-      isUserAtBottom = true;
+      newMessageCount.value = 0;
+      userHasScrolledUp.value = false;
+      isUserAtBottom.value = true;
+
+      setTimeout(() => {
+        isProgrammaticallyScrolling.value = false;
+      }, 500);
     }
 
-    // Handle container scroll
     function handleScroll() {
+      if (isProgrammaticallyScrolling.value) {
+        return;
+      }
       if (!messagesContainer.value) return;
       const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
-      const threshold = 50;
+      const threshold = 20;
 
-      if (scrollHeight - scrollTop - clientHeight < threshold) {
-        isUserAtBottom = true;
-        showNewMessageIndicator.value = false;
+      const atBottom = scrollHeight - scrollTop - clientHeight < threshold;
+
+      if (atBottom) {
+        isUserAtBottom.value = true;
+        newMessageCount.value = 0;
+        userHasScrolledUp.value = false;
         messageStore.markAsRead();
       } else {
-        isUserAtBottom = false;
+        if (isUserAtBottom.value) {
+          isUserAtBottom.value = false;
+        }
+        userHasScrolledUp.value = true;
       }
     }
 
@@ -171,6 +183,7 @@ export default defineComponent({
         return;
       }
 
+      selectedMessageForContextMenu.value = message;
       contextMenuItems.value = getMenuItemsForMessage(message);
       contextMenuPosition.value = { x: event.clientX, y: event.clientY };
       contextMenuVisible.value = true;
@@ -180,7 +193,6 @@ export default defineComponent({
       const isSender = message.sender.id === currentUserId.value;
       const messageType = message.message_type;
 
-      // Base items
       let items = [
         { label: 'Reply', action: 'reply' },
         { label: 'Forward', action: 'forward' },
@@ -207,22 +219,27 @@ export default defineComponent({
     }
 
     function handleContextMenuSelect(item: any) {
-      console.log('User selected:', item.action);
-      // Do something with the action
+      if (item.action === 'reply' && selectedMessageForContextMenu.value) {
+        messageStore.setReplyToMessage(selectedMessageForContextMenu.value);
+      }
+
+      contextMenuVisible.value = false;
     }
 
-    // Watch for new messages
     watch(
-      () => messageStore.messages,
-      async (newMessages, oldMessages) => {
+      () => messageStore.messages.length,
+      async (newLength, oldLength) => {
         await nextTick();
-        if (isUserAtBottom) {
+        const newMessages = newLength - oldLength;
+
+        if (isUserAtBottom.value) {
           scrollToBottom();
         } else {
-          showNewMessageIndicator.value = true;
+          newMessageCount.value += newMessages;
         }
       }
     );
+
 
     watch(
       () => messageStore.receiverId,
@@ -259,6 +276,7 @@ export default defineComponent({
       messageStore,
       currentUserId,
       messagesContainer,
+      newMessageCount,
       showNewMessageIndicator,
       contextMenuVisible,
       contextMenuPosition,
@@ -273,11 +291,19 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.chatView {
+.chatContainer {
   position: relative;
+  height: 100%;
+  width: 100%;
 }
 
-/* For the typing indicator demo */
+.chatView {
+  position: relative;
+  overflow-y: auto;
+  height: 100%;
+  overflow-anchor: none;
+}
+
 .typing-indicator {
   display: flex;
   gap: 0.25rem;
@@ -309,25 +335,52 @@ export default defineComponent({
   }
 }
 
-/* New Message Indicator */
 .new-message-indicator {
   position: absolute;
-  bottom: 70px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #2563eb;
+  bottom: 20px;
+  right: 20px;
+  background-color: #0f3078;
   color: white;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem;
   border-radius: 9999px;
   display: flex;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  transition: background-color 0.3s, opacity 0.3s;
 }
-.new-message-indicator svg {
-  margin-right: 0.5rem;
+
+.message-count {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+  font-size: 0.75rem;
+  pointer-events: none;
 }
+
+/* Hover effect */
 .new-message-indicator:hover {
-  background-color: #1d4ed8;
+  background-color: #182039;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .new-message-indicator {
+    bottom: 15px;
+    right: 15px;
+    padding: 0.5rem;
+  }
+
+  .new-message-indicator svg {
+    margin-right: 0.3rem;
+  }
+
+  .message-count {
+    font-size: 0.65rem;
+  }
 }
 </style>

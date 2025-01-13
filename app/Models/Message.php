@@ -22,7 +22,7 @@ class Message extends Model
     const STATUS_SENT = 'sent';
     const STATUS_RECEIVED = 'received';
     const STATUS_READ = 'read';
-    protected $fillable = ['conversation_id', 'sender_id', 'message_type', 'content', 'status'];
+    protected $fillable = ['conversation_id', 'reply_to_message_id', 'sender_id', 'message_type', 'content', 'status'];
 
     protected $casts = [
         'message_type' => MessageType::class,
@@ -42,4 +42,10 @@ class Message extends Model
     {
         return $this->hasMany(File::class);
     }
+
+    public function replyToMessage(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'reply_to_message_id');
+    }
+
 }

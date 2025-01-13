@@ -21,7 +21,7 @@ class MessageController extends Controller
         $this->messageService = $messageService;
     }
 
-    public function sendMessage(Request $request)
+    public function sendMessage(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
             'type'       => 'required|in:private,group,channel',
@@ -30,6 +30,7 @@ class MessageController extends Controller
             'content'    => 'nullable|string|max:1000',
             'file'       => 'nullable|file|max:200480',
             'audio' => 'nullable|mimes:webm,mp3,wav,ogg|max:100240',
+            'reply_to_message_id' => 'nullable|exists:messages,id',
         ]);
 
         $sender = auth()->user();
@@ -52,19 +53,21 @@ class MessageController extends Controller
                 break;
         }
 
+        $replyToMessageId = $request->input('reply_to_message_id');
+
         if ($request->hasFile('file')) {
-            $message = $this->messageService->sendFileMessage($conversation, $sender, $request->file('file'));
+            $message = $this->messageService->sendFileMessage($conversation, $sender, $request->file('file'), $replyToMessageId);
             return response()->json(['success' => true, 'data' => $message], 201);
         } elseif ($request->hasFile('audio')) {
-            $message = $this->messageService->sendAudioMessage($conversation, $sender, $request->file('audio'));
+            $message = $this->messageService->sendAudioMessage($conversation, $sender, $request->file('audio'), $replyToMessageId);
             return response()->json(['success' => true, 'data' => $message], 201);
         } else {
-            $message = $this->messageService->sendTextMessage($conversation, $sender, $request->input('content'));
+            $message = $this->messageService->sendTextMessage($conversation, $sender, $request->input('content'), $replyToMessageId);
             return response()->json(['success' => true, 'data' => $message], 201);
         }
     }
 
-    public function getConversation(Request $request, $receiverId)
+    public function getConversation(Request $request, $receiverId): \Illuminate\Http\JsonResponse
     {
         $sender = auth()->user();
         $receiver = User::findOrFail($receiverId);
@@ -77,7 +80,7 @@ class MessageController extends Controller
         ], 200);
     }
 
-    public function getMessages($conversationId)
+    public function getMessages($conversationId): \Illuminate\Http\JsonResponse
     {
         $user = auth()->user();
 
@@ -97,7 +100,30 @@ class MessageController extends Controller
         ], 200);
     }
 
-    public function markAsRead(Request $request, $conversationId)
+    public function getMessageById($id): \Illuminate\Http\JsonResponse
+    {
+        $user = auth()->user();
+
+        $message = Message::where('id', $id)
+            ->whereHas('conversation', function ($query) use ($user) {
+                $query->whereHas('users', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+            })
+            ->with(['sender.profile', 'files'])
+            ->first();
+
+        if (!$message) {
+            return response()->json(['success' => false, 'message' => 'Message not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $message,
+        ], 200);
+    }
+
+    public function markAsRead(Request $request, $conversationId): \Illuminate\Http\JsonResponse
     {
         $user = auth()->user();
 
@@ -122,7 +148,7 @@ class MessageController extends Controller
         ], 200);
     }
 
-    public function userTyping(Request $request, $conversationId)
+    public function userTyping(Request $request, $conversationId): \Illuminate\Http\JsonResponse
     {
         $user = auth()->user();
         $isTyping = $request->input('is_typing', false);
@@ -132,7 +158,7 @@ class MessageController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function getSameIPConversation(Request $request, GroupService $groupService)
+    public function getSameIPConversation(Request $request, GroupService $groupService): \Illuminate\Http\JsonResponse
     {
         $user = $request->user();
         $conversation = $groupService->createOrJoinGroup($user);
